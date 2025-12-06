@@ -1,12 +1,15 @@
 "use client"
 
 import { Code2, Mic, Terminal, FileText, BarChart3 } from "lucide-react"
+import { useScrollAnimation } from "@/hooks/use-scroll-animation"
 
 export function BentoSection() {
+  const { ref, isVisible } = useScrollAnimation(0.1)
+
   return (
-    <section className="py-24 bg-card/30">
+    <section ref={ref as React.RefObject<HTMLElement>} className="py-24 bg-card/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className={`text-center max-w-3xl mx-auto mb-16 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <h2 className="text-3xl sm:text-4xl font-bold">Built for serious preparation</h2>
           <p className="mt-4 text-lg text-muted-foreground">
             Every feature designed to maximize your chances of getting placed.
@@ -15,10 +18,15 @@ export function BentoSection() {
 
         <div className="grid md:grid-cols-3 gap-4">
           {/* Large card - DSA */}
-          <div className="md:col-span-2 bg-card rounded-2xl border border-border p-8 hover:border-primary/50 transition-colors">
+          <div 
+            className={`md:col-span-2 bg-card rounded-2xl border border-border p-8 hover:border-primary/50 transition-all duration-700 hover:shadow-lg hover:shadow-primary/5 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"
+            }`}
+            style={{ transitionDelay: isVisible ? "100ms" : "0ms" }}
+          >
             <div className="flex items-start justify-between">
               <div>
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 hover:scale-110 transition-transform">
                   <Code2 className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-2">DSA Mastery</h3>
@@ -29,8 +37,14 @@ export function BentoSection() {
               </div>
             </div>
             <div className="mt-8 grid grid-cols-4 gap-3">
-              {["Arrays", "Trees", "Graphs", "DP", "Strings", "Stacks", "Heaps", "Linked Lists"].map((topic) => (
-                <div key={topic} className="px-3 py-2 bg-secondary rounded-lg text-sm text-center">
+              {["Arrays", "Trees", "Graphs", "DP", "Strings", "Stacks", "Heaps", "Linked Lists"].map((topic, i) => (
+                <div 
+                  key={topic} 
+                  className={`px-3 py-2 bg-secondary rounded-lg text-sm text-center hover:bg-primary/20 hover:text-primary hover:scale-105 transition-all duration-300 cursor-pointer ${
+                    isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+                  }`}
+                  style={{ transitionDelay: isVisible ? `${300 + i * 50}ms` : "0ms" }}
+                >
                   {topic}
                 </div>
               ))}
@@ -38,7 +52,12 @@ export function BentoSection() {
           </div>
 
           {/* Small card - Analytics */}
-          <div className="bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-colors">
+          <div 
+            className={`bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-all duration-700 hover:shadow-lg hover:shadow-primary/5 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"
+            }`}
+            style={{ transitionDelay: isVisible ? "200ms" : "0ms" }}
+          >
             <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center mb-4">
               <BarChart3 className="w-5 h-5 text-accent" />
             </div>
@@ -66,7 +85,12 @@ export function BentoSection() {
           </div>
 
           {/* Small card - Resume */}
-          <div className="bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-colors">
+          <div 
+            className={`bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-all duration-700 hover:shadow-lg hover:shadow-primary/5 hover:scale-105 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"
+            }`}
+            style={{ transitionDelay: isVisible ? "300ms" : "0ms" }}
+          >
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
               <FileText className="w-5 h-5 text-primary" />
             </div>
@@ -77,9 +101,14 @@ export function BentoSection() {
           </div>
 
           {/* Large card - Mock Interviews */}
-          <div className="md:col-span-2 bg-card rounded-2xl border border-border p-8 hover:border-primary/50 transition-colors">
+          <div 
+            className={`md:col-span-2 bg-card rounded-2xl border border-border p-8 hover:border-primary/50 transition-all duration-700 hover:shadow-lg hover:shadow-primary/5 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"
+            }`}
+            style={{ transitionDelay: isVisible ? "400ms" : "0ms" }}
+          >
             <div className="flex items-start gap-6">
-              <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center shrink-0 hover:scale-110 transition-transform">
                 <Mic className="w-6 h-6 text-accent" />
               </div>
               <div>
@@ -89,8 +118,14 @@ export function BentoSection() {
                   company-specific rounds.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["1:1 Voice", "Panel", "Behavioral", "Technical", "System Design", "HR Round"].map((type) => (
-                    <span key={type} className="px-3 py-1 bg-accent/10 text-accent rounded-full text-sm">
+                  {["1:1 Voice", "Panel", "Behavioral", "Technical", "System Design", "HR Round"].map((type, i) => (
+                    <span 
+                      key={type} 
+                      className={`px-3 py-1 bg-accent/10 text-accent rounded-full text-sm hover:bg-accent/20 hover:scale-105 transition-all duration-300 cursor-pointer ${
+                        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+                      }`}
+                      style={{ transitionDelay: isVisible ? `${600 + i * 80}ms` : "0ms" }}
+                    >
                       {type}
                     </span>
                   ))}
@@ -100,9 +135,14 @@ export function BentoSection() {
           </div>
 
           {/* Full width - Code Arena */}
-          <div className="md:col-span-3 bg-card rounded-2xl border border-border p-8 hover:border-primary/50 transition-colors">
+          <div 
+            className={`md:col-span-3 bg-card rounded-2xl border border-border p-8 hover:border-primary/50 transition-all duration-700 hover:shadow-lg hover:shadow-primary/5 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"
+            }`}
+            style={{ transitionDelay: isVisible ? "500ms" : "0ms" }}
+          >
             <div className="flex flex-col md:flex-row items-start gap-6">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 hover:scale-110 hover:rotate-6 transition-all duration-300">
                 <Terminal className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1">
@@ -112,14 +152,24 @@ export function BentoSection() {
                   terminal, instant preview - everything you need to practice like you would in a real job.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  {["React", "Node.js", "Python", "TypeScript", "MongoDB", "Spring Boot", "Docker"].map((tech) => (
-                    <span key={tech} className="px-4 py-2 bg-secondary rounded-lg text-sm font-medium">
+                  {["React", "Node.js", "Python", "TypeScript", "MongoDB", "Spring Boot", "Docker"].map((tech, i) => (
+                    <span 
+                      key={tech} 
+                      className={`px-4 py-2 bg-secondary rounded-lg text-sm font-medium hover:bg-primary/20 hover:text-primary hover:scale-105 transition-all duration-300 cursor-pointer ${
+                        isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-10"
+                      }`}
+                      style={{ transitionDelay: isVisible ? `${700 + i * 80}ms` : "0ms" }}
+                    >
                       {tech}
                     </span>
                   ))}
                 </div>
               </div>
-              <div className="w-full md:w-80 bg-secondary rounded-xl p-4 font-mono text-sm">
+              <div className={`w-full md:w-80 bg-secondary rounded-xl p-4 font-mono text-sm transition-all duration-700 ${
+                isVisible ? "opacity-100 scale-100" : "opacity-0 scale-90"
+              }`}
+              style={{ transitionDelay: isVisible ? "800ms" : "0ms" }}
+              >
                 <div className="text-muted-foreground">{"// Implement useState hook"}</div>
                 <div className="mt-2">
                   <span className="text-accent">function</span> <span className="text-primary">useState</span>

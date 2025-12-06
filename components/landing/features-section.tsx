@@ -1,4 +1,7 @@
+"use client"
+
 import { Code2, Mic, Terminal, Building2, Brain, TrendingUp } from "lucide-react"
+import { useScrollAnimation } from "@/hooks/use-scroll-animation"
 
 const features = [
   {
@@ -39,10 +42,12 @@ const features = [
 ]
 
 export function FeaturesSection() {
+  const { ref, isVisible } = useScrollAnimation(0.1)
+
   return (
-    <section className="py-24">
+    <section ref={ref as React.RefObject<HTMLElement>} className="py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className={`text-center max-w-3xl mx-auto mb-16 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <h2 className="text-3xl sm:text-4xl font-bold text-balance">Everything you need to land your dream job</h2>
           <p className="mt-4 text-lg text-muted-foreground text-pretty">
             A comprehensive platform designed to take you from learning to landing with structured preparation and
@@ -54,9 +59,15 @@ export function FeaturesSection() {
           {features.map((feature, i) => (
             <div
               key={i}
-              className="group p-6 bg-card rounded-2xl border border-border hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/5"
+              className={`group p-6 bg-card rounded-2xl border border-border hover:border-primary/50 transition-all duration-500 hover:shadow-xl hover:shadow-primary/10 hover:scale-105 hover:-translate-y-2 ${
+                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-20"
+              }`}
+              style={{ 
+                transitionDelay: isVisible ? `${i * 100}ms` : "0ms",
+                transitionDuration: "700ms"
+              }}
             >
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
