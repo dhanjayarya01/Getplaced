@@ -1,43 +1,84 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronRight } from "lucide-react"
+import { apiService } from "@/lib/api"
 
-const dataStructures = [
-  { name: "Arrays", count: 85 },
-  { name: "Linked Lists", count: 42 },
-  { name: "Stacks", count: 28 },
-  { name: "Queues", count: 22 },
-  { name: "Trees", count: 65 },
-  { name: "Graphs", count: 58 },
-  { name: "Heaps", count: 25 },
-  { name: "Hash Tables", count: 45 },
-  { name: "Tries", count: 18 },
-]
+interface FilterOptions {
+  difficulties: Array<{ _id: string; count: number }>
+  dataStructures: Array<{ _id: string; count: number }>
+  patterns: Array<{ _id: string; count: number }>
+  companies: Array<{ _id: string; count: number }>
+}
 
-const patterns = [
-  { name: "Two Pointers", count: 38 },
-  { name: "Sliding Window", count: 32 },
-  { name: "Binary Search", count: 45 },
-  { name: "DFS/BFS", count: 52 },
-  { name: "Dynamic Programming", count: 78 },
-  { name: "Backtracking", count: 35 },
-  { name: "Greedy", count: 28 },
-  { name: "Divide & Conquer", count: 22 },
-]
+interface DSAFiltersProps {
+  onFilterChange: (filters: any) => void
+}
 
-const difficulties = [
-  { name: "Easy", count: 150, color: "text-green-500" },
-  { name: "Medium", count: 250, color: "text-yellow-500" },
-  { name: "Hard", count: 100, color: "text-red-500" },
-]
-
-export function DSAFilters() {
+export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(["ds", "patterns", "difficulty"])
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null)
+  const [selectedDataStructures, setSelectedDataStructures] = useState<string[]>([])
+  const [selectedPatterns, setSelectedPatterns] = useState<string[]>([])
+  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([])
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([])
+
+  useEffect(() => {
+    fetchFilterOptions()
+  }, [])
+
+  const fetchFilterOptions = async () => {
+    try {
+      const response = await apiService.admin.getDSAFilters()
+      if (response.success) {
+        setFilterOptions(response.data)
+      }
+    } catch (error) {
+      console.error('Error fetching filter options:', error)
+    }
+  }
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => (prev.includes(section) ? prev.filter((s) => s !== section) : [...prev, section]))
+  }
+
+  const toggleSelection = (array: string[], item: string, setter: (arr: string[]) => void) => {
+    if (array.includes(item)) {
+      setter(array.filter(i => i !== item))
+    } else {
+      setter([...array, item])
+    }
+  }
+
+  const applyFilters = () => {
+    onFilterChange({
+      dataStructures: selectedDataStructures,
+      patterns: selectedPatterns,
+      difficulties: selectedDifficulties,
+      companies: selectedCompanies
+    })
+  }
+
+  const clearFilters = () => {
+    setSelectedDataStructures([])
+    setSelectedPatterns([])
+    setSelectedDifficulties([])
+    setSelectedCompanies([])
+    onFilterChange({})
+  }
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Easy': return 'text-green-500'
+      case 'Medium': return 'text-yellow-500'
+      case 'Hard': return 'text-red-500'
+      default: return ''
+    }
+  }
+
+  if (!filterOptions) {
+    return <div className="bg-card rounded-xl border border-border p-4">Loading filters...</div>
   }
 
   return (
@@ -55,13 +96,18 @@ export function DSAFilters() {
         </button>
         {expandedSections.includes("ds") && (
           <div className="space-y-1 mt-2">
-            {dataStructures.map((ds) => (
+            {filterOptions.dataStructures.map((ds) => (
               <label
-                key={ds.name}
+                key={ds._id}
                 className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
               >
-                <input type="checkbox" className="rounded border-border" />
-                <span className="flex-1">{ds.name}</span>
+                <input
+                  type="checkbox"
+                  className="rounded border-border"
+                  checked={selectedDataStructures.includes(ds._id)}
+                  onChange={() => toggleSelection(selectedDataStructures, ds._id, setSelectedDataStructures)}
+                />
+                <span className="flex-1">{ds._id}</span>
                 <span className="text-xs">{ds.count}</span>
               </label>
             ))}
@@ -84,13 +130,18 @@ export function DSAFilters() {
         </button>
         {expandedSections.includes("patterns") && (
           <div className="space-y-1 mt-2">
-            {patterns.map((pattern) => (
+            {filterOptions.patterns.map((pattern) => (
               <label
-                key={pattern.name}
+                key={pattern._id}
                 className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
               >
-                <input type="checkbox" className="rounded border-border" />
-                <span className="flex-1">{pattern.name}</span>
+                <input
+                  type="checkbox"
+                  className="rounded border-border"
+                  checked={selectedPatterns.includes(pattern._id)}
+                  onChange={() => toggleSelection(selectedPatterns, pattern._id, setSelectedPatterns)}
+                />
+                <span className="flex-1">{pattern._id}</span>
                 <span className="text-xs">{pattern.count}</span>
               </label>
             ))}
@@ -113,10 +164,15 @@ export function DSAFilters() {
         </button>
         {expandedSections.includes("difficulty") && (
           <div className="space-y-1 mt-2">
-            {difficulties.map((diff) => (
-              <label key={diff.name} className="flex items-center gap-2 text-sm cursor-pointer py-1">
-                <input type="checkbox" className="rounded border-border" />
-                <span className={`flex-1 ${diff.color}`}>{diff.name}</span>
+            {filterOptions.difficulties.map((diff) => (
+              <label key={diff._id} className="flex items-center gap-2 text-sm cursor-pointer py-1">
+                <input
+                  type="checkbox"
+                  className="rounded border-border"
+                  checked={selectedDifficulties.includes(diff._id)}
+                  onChange={() => toggleSelection(selectedDifficulties, diff._id, setSelectedDifficulties)}
+                />
+                <span className={`flex-1 ${getDifficultyColor(diff._id)}`}>{diff._id}</span>
                 <span className="text-xs text-muted-foreground">{diff.count}</span>
               </label>
             ))}
@@ -124,9 +180,14 @@ export function DSAFilters() {
         )}
       </div>
 
-      <Button variant="outline" size="sm" className="w-full mt-4 bg-transparent">
-        Clear All Filters
-      </Button>
+      <div className="space-y-2">
+        <Button variant="default" size="sm" className="w-full" onClick={applyFilters}>
+          Apply Filters
+        </Button>
+        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={clearFilters}>
+          Clear All Filters
+        </Button>
+      </div>
     </div>
   )
 }
