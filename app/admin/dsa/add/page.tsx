@@ -20,6 +20,7 @@ export default function AddDSAProblem() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
+    problemNumber: 1,
     slug: '',
     description: '',
     difficulty: 'Easy',
@@ -145,6 +146,21 @@ export default function AddDSAProblem() {
                 onChange={(e) => handleTitleChange(e.target.value)}
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="problemNumber">Problem Number *</Label>
+              <Input
+                id="problemNumber"
+                type="number"
+                value={formData.problemNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, problemNumber: parseInt(e.target.value) }))}
+                required
+                min="1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Unique number for indexing and company references
+              </p>
             </div>
 
             <div>

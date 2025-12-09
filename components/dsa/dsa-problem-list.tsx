@@ -111,53 +111,55 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
             <Link
               key={problem._id}
               href={`/dsa/${problem.slug || problem._id}`}
-              className="block p-6 hover:bg-accent/50 transition-colors"
+              className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors"
             >
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full border-2 border-border flex items-center justify-center">
-                  {problem.solved && <Check className="w-4 h-4 text-green-500" />}
-                </div>
+              {/* Status Icon */}
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+                {problem.solved ? (
+                  <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Check className="w-4 h-4 text-primary" />
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 border border-border rounded-full" />
+                )}
+              </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-lg">{problem.title}</h3>
-                    <span className={`text-sm font-medium ${getDifficultyColor(problem.difficulty)}`}>
-                      {problem.difficulty}
+              {/* Problem Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium truncate">{problem.title}</span>
+                  <span className={`text-sm ${getDifficultyColor(problem.difficulty)}`}>
+                    {problem.difficulty}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {problem.dataStructures?.slice(0, 2).map((topic: string) => (
+                    <span 
+                      key={topic} 
+                      className="text-xs px-2 py-0.5 bg-secondary rounded-full text-muted-foreground"
+                    >
+                      {topic}
                     </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-wrap gap-1">
-                        {problem.dataStructures?.slice(0, 3).map((topic: string) => (
-                          <span key={topic} className="px-2 py-1 bg-accent rounded text-xs">
-                            {topic}
-                          </span>
-                        ))}
-                        {problem.dataStructures?.length > 3 && (
-                          <span className="px-2 py-1 bg-accent rounded text-xs">
-                            +{problem.dataStructures.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {problem.companies && problem.companies.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Building2 className="w-4 h-4" />
-                        <span>{problem.companies.slice(0, 2).join(", ")}</span>
-                        {problem.companies.length > 2 && <span>+{problem.companies.length - 2}</span>}
-                      </div>
-                    )}
-
-                    {problem.acceptance && (
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="w-4 h-4" />
-                        <span>{problem.acceptance}%</span>
-                      </div>
-                    )}
-                  </div>
+                  ))}
+                  {problem.dataStructures?.length > 2 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{problem.dataStructures.length - 2}
+                    </span>
+                  )}
                 </div>
+              </div>
+
+              {/* Companies & Acceptance */}
+              <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+                {problem.companies && problem.companies.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    <span>{problem.companies.slice(0, 2).join(", ")}</span>
+                  </div>
+                )}
+                {problem.acceptance && (
+                  <div className="w-16 text-right">{problem.acceptance}%</div>
+                )}
               </div>
             </Link>
           ))
@@ -166,24 +168,28 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
 
       {/* Pagination */}
       {pagination && pagination.pages > 1 && (
-        <div className="p-6 border-t border-border flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {page} of {pagination.pages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={() => setPage(page + 1)}
-            disabled={page === pagination.pages}
-          >
-            Next
-          </Button>
+        <div className="p-4 border-t border-border flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground px-4">
+              Page {page} of {pagination.pages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(page + 1)}
+              disabled={page === pagination.pages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
     </div>
