@@ -3,7 +3,7 @@ import { Code2 } from "lucide-react"
 export function DSAHero() {
   return (
     <section className="bg-card border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">

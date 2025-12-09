@@ -349,6 +349,208 @@ export default function AddDSAProblem() {
           </CardContent>
         </Card>
 
+        {/* Constraints */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Constraints</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {formData.constraints.map((constraint, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  value={constraint}
+                  onChange={(e) => {
+                    const newConstraints = [...formData.constraints]
+                    newConstraints[index] = e.target.value
+                    setFormData(prev => ({ ...prev, constraints: newConstraints }))
+                  }}
+                  placeholder="e.g., 1 <= nums.length <= 10^4"
+                />
+                {formData.constraints.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        constraints: prev.constraints.filter((_, i) => i !== index)
+                      }))
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFormData(prev => ({
+                ...prev,
+                constraints: [...prev.constraints, '']
+              }))}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Constraint
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Starter Code */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Starter Code Templates</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="starterCodeJS">JavaScript</Label>
+              <Textarea
+                id="starterCodeJS"
+                value={formData.starterCode.javascript}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  starterCode: { ...prev.starterCode, javascript: e.target.value }
+                }))}
+                rows={6}
+                placeholder="function twoSum(nums, target) {&#10;  // Write your solution here&#10;  return [];&#10;}"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="starterCodePython">Python</Label>
+              <Textarea
+                id="starterCodePython"
+                value={formData.starterCode.python}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  starterCode: { ...prev.starterCode, python: e.target.value }
+                }))}
+                rows={6}
+                placeholder="def twoSum(nums, target):&#10;    # Write your solution here&#10;    return []"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="starterCodeJava">Java</Label>
+              <Textarea
+                id="starterCodeJava"
+                value={formData.starterCode.java}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  starterCode: { ...prev.starterCode, java: e.target.value }
+                }))}
+                rows={6}
+                placeholder="class Solution {&#10;    public int[] twoSum(int[] nums, int target) {&#10;        // Write your solution here&#10;        return new int[]{};&#10;    }&#10;}"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="starterCodeCpp">C++</Label>
+              <Textarea
+                id="starterCodeCpp"
+                value={formData.starterCode.cpp}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  starterCode: { ...prev.starterCode, cpp: e.target.value }
+                }))}
+                rows={6}
+                placeholder="class Solution {&#10;public:&#10;    vector<int> twoSum(vector<int>& nums, int target) {&#10;        // Write your solution here&#10;        return {};&#10;    }&#10;};"
+                className="font-mono text-sm"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Solution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Solution (Optional)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="solutionLanguage">Language</Label>
+              <Select
+                value={formData.solution.language}
+                onValueChange={(value) => setFormData(prev => ({
+                  ...prev,
+                  solution: { ...prev.solution, language: value }
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="javascript">JavaScript</SelectItem>
+                  <SelectItem value="python">Python</SelectItem>
+                  <SelectItem value="java">Java</SelectItem>
+                  <SelectItem value="cpp">C++</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="solutionCode">Solution Code</Label>
+              <Textarea
+                id="solutionCode"
+                value={formData.solution.code}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  solution: { ...prev.solution, code: e.target.value }
+                }))}
+                rows={10}
+                placeholder="// Optimal solution code"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="solutionExplanation">Explanation</Label>
+              <Textarea
+                id="solutionExplanation"
+                value={formData.solution.explanation}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  solution: { ...prev.solution, explanation: e.target.value }
+                }))}
+                rows={4}
+                placeholder="Explain the approach and algorithm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="timeComplexity">Time Complexity</Label>
+                <Input
+                  id="timeComplexity"
+                  value={formData.solution.timeComplexity}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    solution: { ...prev.solution, timeComplexity: e.target.value }
+                  }))}
+                  placeholder="e.g., O(n)"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="spaceComplexity">Space Complexity</Label>
+                <Input
+                  id="spaceComplexity"
+                  value={formData.solution.spaceComplexity}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    solution: { ...prev.solution, spaceComplexity: e.target.value }
+                  }))}
+                  placeholder="e.g., O(n)"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Test Cases */}
         <Card>
           <CardHeader>

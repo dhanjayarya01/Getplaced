@@ -113,6 +113,13 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
               href={`/dsa/${problem.slug || problem._id}`}
               className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors"
             >
+              {/* Problem Number Badge */}
+              <div className="flex-shrink-0">
+                <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20">
+                  #{problem.problemNumber || '?'}
+                </span>
+              </div>
+
               {/* Status Icon */}
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                 {problem.solved ? (

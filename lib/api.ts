@@ -237,6 +237,33 @@ class ApiService {
                 throw this._handleError(error)
             }
         },
+
+        linkDSA: async (id: string, data: any) => {
+            try {
+                const response = await apiClient.post(`/api/companies/${id}/link-dsa`, data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        linkDev: async (id: string, data: any) => {
+            try {
+                const response = await apiClient.post(`/api/companies/${id}/link-dev`, data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        addInterviewQuestion: async (id: string, data: any) => {
+            try {
+                const response = await apiClient.post(`/api/companies/${id}/interview-question`, data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
     }
 
     // ============================================
