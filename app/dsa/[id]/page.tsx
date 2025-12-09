@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect } from "react"
+import { use, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { Navbar } from "@/components/navbar"
 import { DSAProblemView } from "@/components/dsa/dsa-problem-view"
 
-export default function DSAProblemPage({ params }: { params: { id: string } }) {
+export default function DSAProblemPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { id } = use(params) // Unwrap the Promise
 
   useEffect(() => {
     if (!loading && !user) {
@@ -36,7 +37,7 @@ export default function DSAProblemPage({ params }: { params: { id: string } }) {
     <main className="min-h-screen bg-background">
       <Navbar />
       <div className="pt-16">
-        <DSAProblemView problemId={params.id} />
+        <DSAProblemView problemId={id} />
       </div>
     </main>
   )

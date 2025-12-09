@@ -16,6 +16,17 @@ interface DSAFiltersProps {
   onFilterChange: (filters: any) => void
 }
 
+// All possible filter options (always show these)
+const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard']
+const ALL_DATA_STRUCTURES = [
+  'Array', 'String', 'Linked List', 'Stack', 'Queue', 
+  'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie'
+]
+const ALL_PATTERNS = [
+  'Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS',
+  'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer'
+]
+
 export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(["ds", "patterns", "difficulty"])
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null)
@@ -36,7 +47,36 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
       }
     } catch (error) {
       console.error('Error fetching filter options:', error)
+      // Even if API fails, we can still show static options
+      setFilterOptions({
+        difficulties: [],
+        dataStructures: [],
+        patterns: [],
+        companies: []
+      })
     }
+  }
+
+  // Merge static options with API counts
+  const getDataStructuresWithCounts = () => {
+    return ALL_DATA_STRUCTURES.map(ds => {
+      const found = filterOptions?.dataStructures.find(f => f._id === ds)
+      return { _id: ds, count: found?.count || 0 }
+    })
+  }
+
+  const getPatternsWithCounts = () => {
+    return ALL_PATTERNS.map(pattern => {
+      const found = filterOptions?.patterns.find(f => f._id === pattern)
+      return { _id: pattern, count: found?.count || 0 }
+    })
+  }
+
+  const getDifficultiesWithCounts = () => {
+    return ALL_DIFFICULTIES.map(diff => {
+      const found = filterOptions?.difficulties.find(f => f._id === diff)
+      return { _id: diff, count: found?.count || 0 }
+    })
   }
 
   const toggleSection = (section: string) => {
@@ -96,7 +136,7 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
         </button>
         {expandedSections.includes("ds") && (
           <div className="space-y-1 mt-2">
-            {filterOptions.dataStructures.map((ds) => (
+            {getDataStructuresWithCounts().map((ds) => (
               <label
                 key={ds._id}
                 className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
@@ -130,7 +170,7 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
         </button>
         {expandedSections.includes("patterns") && (
           <div className="space-y-1 mt-2">
-            {filterOptions.patterns.map((pattern) => (
+            {getPatternsWithCounts().map((pattern) => (
               <label
                 key={pattern._id}
                 className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
@@ -164,7 +204,7 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
         </button>
         {expandedSections.includes("difficulty") && (
           <div className="space-y-1 mt-2">
-            {filterOptions.difficulties.map((diff) => (
+            {getDifficultiesWithCounts().map((diff) => (
               <label key={diff._id} className="flex items-center gap-2 text-sm cursor-pointer py-1">
                 <input
                   type="checkbox"
