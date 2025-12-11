@@ -230,6 +230,219 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         </div>
       )}
 
+      {/* Requirements */}
+      {company.requirements && company.requirements.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            Requirements
+          </h2>
+          <ul className="space-y-2">
+            {company.requirements.map((req: string, index: number) => (
+              <li key={index} className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span className="text-sm">{req}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Tech Stack */}
+      {company.techStack && company.techStack.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Code className="w-5 h-5 text-primary" />
+            Tech Stack
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {company.techStack.map((tech: string, index: number) => (
+              <span
+                key={index}
+                className="px-4 py-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium border border-blue-500/20"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Benefits */}
+      {company.benefits && company.benefits.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Star className="w-5 h-5 text-primary" />
+            Benefits & Perks
+          </h2>
+          <div className="grid md:grid-cols-2 gap-3">
+            {company.benefits.map((benefit: string, index: number) => (
+              <div key={index} className="flex items-start gap-2 p-3 bg-secondary/50 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span className="text-sm">{benefit}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Eligibility Criteria */}
+      {company.eligibilityCriteria && Object.keys(company.eligibilityCriteria).some(key => company.eligibilityCriteria[key]) && (
+        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-primary" />
+            Eligibility Criteria
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {company.eligibilityCriteria.minCGPA && (
+              <div className="bg-secondary/50 p-4 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Minimum CGPA</p>
+                <p className="text-lg font-semibold">{company.eligibilityCriteria.minCGPA}</p>
+              </div>
+            )}
+            {company.eligibilityCriteria.minPercentage && (
+              <div className="bg-secondary/50 p-4 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Minimum Percentage</p>
+                <p className="text-lg font-semibold">{company.eligibilityCriteria.minPercentage}%</p>
+              </div>
+            )}
+            {company.eligibilityCriteria.educationLevel && (
+              <div className="bg-secondary/50 p-4 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Education Level</p>
+                <p className="text-lg font-semibold">{company.eligibilityCriteria.educationLevel}</p>
+              </div>
+            )}
+            {company.eligibilityCriteria.maxBacklogs !== undefined && company.eligibilityCriteria.maxBacklogs !== null && (
+              <div className="bg-secondary/50 p-4 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Max Backlogs</p>
+                <p className="text-lg font-semibold">{company.eligibilityCriteria.maxBacklogs}</p>
+              </div>
+            )}
+            {company.eligibilityCriteria.ageLimit && (
+              <div className="bg-secondary/50 p-4 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Age Limit</p>
+                <p className="text-lg font-semibold">{company.eligibilityCriteria.ageLimit} years</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Linked DSA Problems */}
+      {company.linkedDSAProblems && company.linkedDSAProblems.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Code className="w-5 h-5 text-primary" />
+            Frequently Asked DSA Problems
+          </h2>
+          <div className="space-y-3">
+            {company.linkedDSAProblems.map((item: any, index: number) => (
+              <div key={index} className="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      {item.problem?.problemNumber && (
+                        <span className="text-sm font-mono font-semibold text-primary">
+                          #{item.problem.problemNumber}
+                        </span>
+                      )}
+                      <h3 className="font-semibold">
+                        {item.problem?.title || 'Problem'}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      {item.frequency && (
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          item.frequency === 'Very High' ? 'bg-red-500/10 text-red-600' :
+                          item.frequency === 'High' ? 'bg-orange-500/10 text-orange-600' :
+                          item.frequency === 'Medium' ? 'bg-yellow-500/10 text-yellow-600' :
+                          'bg-green-500/10 text-green-600'
+                        }`}>
+                          {item.frequency} Frequency
+                        </span>
+                      )}
+                      {item.role && (
+                        <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-600 rounded">
+                          {item.role}
+                        </span>
+                      )}
+                      {item.problem?.difficulty && (
+                        <span className={`text-xs px-2 py-1 rounded ${getDifficultyColor(item.problem.difficulty)}`}>
+                          {item.problem.difficulty}
+                        </span>
+                      )}
+                    </div>
+                    {item.notes && (
+                      <p className="text-sm text-muted-foreground mt-2">{item.notes}</p>
+                    )}
+                  </div>
+                  {item.problem?._id && (
+                    <Link href={`/dsa/${item.problem._id}`}>
+                      <Button size="sm" variant="outline">
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Linked Dev Problems */}
+      {company.linkedDevProblems && company.linkedDevProblems.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" />
+            Development Problems
+          </h2>
+          <div className="space-y-3">
+            {company.linkedDevProblems.map((item: any, index: number) => (
+              <div key={index} className="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{item.problem?.title || 'Problem'}</h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      {item.frequency && (
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          item.frequency === 'Very High' ? 'bg-red-500/10 text-red-600' :
+                          item.frequency === 'High' ? 'bg-orange-500/10 text-orange-600' :
+                          item.frequency === 'Medium' ? 'bg-yellow-500/10 text-yellow-600' :
+                          'bg-green-500/10 text-green-600'
+                        }`}>
+                          {item.frequency} Frequency
+                        </span>
+                      )}
+                      {item.role && (
+                        <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-600 rounded">
+                          {item.role}
+                        </span>
+                      )}
+                      {item.problem?.difficulty && (
+                        <span className={`text-xs px-2 py-1 rounded ${getDifficultyColor(item.problem.difficulty)}`}>
+                          {item.problem.difficulty}
+                        </span>
+                      )}
+                    </div>
+                    {item.notes && (
+                      <p className="text-sm text-muted-foreground mt-2">{item.notes}</p>
+                    )}
+                  </div>
+                  {item.problem?._id && (
+                    <Link href={`/code-arena/${item.problem._id}`}>
+                      <Button size="sm" variant="outline">
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Popular Questions */}
       {company.interviewQuestions && company.interviewQuestions.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-6">

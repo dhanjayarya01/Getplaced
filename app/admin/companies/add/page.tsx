@@ -45,6 +45,18 @@ export default function AddCompany() {
       max: 0,
       currency: 'INR'
     },
+    requirements: [''],
+    techStack: [] as string[],
+    benefits: [''],
+    eligibilityCriteria: {
+      minCGPA: null as number | null,
+      minPercentage: null as number | null,
+      educationLevel: '',
+      allowedBranches: [] as string[],
+      maxBacklogs: null as number | null,
+      yearOfPassing: [] as number[],
+      ageLimit: null as number | null,
+    },
     interviewTips: [''],
     isHiring: true,
     isActive: true
@@ -138,6 +150,68 @@ export default function AddCompany() {
     setFormData(prev => ({
       ...prev,
       interviewTips: prev.interviewTips.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Requirements management
+  const addRequirement = () => {
+    setFormData(prev => ({
+      ...prev,
+      requirements: [...prev.requirements, '']
+    }))
+  }
+
+  const updateRequirement = (index: number, value: string) => {
+    const newReqs = [...formData.requirements]
+    newReqs[index] = value
+    setFormData(prev => ({ ...prev, requirements: newReqs }))
+  }
+
+  const removeRequirement = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      requirements: prev.requirements.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Tech Stack management
+  const [newTech, setNewTech] = useState('')
+
+  const addTech = () => {
+    if (newTech.trim() && !formData.techStack.includes(newTech.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        techStack: [...prev.techStack, newTech.trim()]
+      }))
+      setNewTech('')
+    }
+  }
+
+  const removeTech = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      techStack: prev.techStack.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Benefits management
+  const addBenefit = () => {
+    setFormData(prev => ({
+      ...prev,
+      benefits: [...prev.benefits, '']
+    }))
+  }
+
+  const updateBenefit = (index: number, value: string) => {
+    const newBenefits = [...formData.benefits]
+    newBenefits[index] = value
+    setFormData(prev => ({ ...prev, benefits: newBenefits }))
+  }
+
+  const removeBenefit = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      benefits: prev.benefits.filter((_, i) => i !== index)
     }))
   }
 
@@ -682,6 +756,232 @@ export default function AddCompany() {
                   <Plus className="w-4 h-4 mr-2" />
                   Add Tip
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Requirements */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Job Requirements</CardTitle>
+                <CardDescription>Specify the requirements for candidates</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {formData.requirements.map((req, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={req}
+                      onChange={(e) => updateRequirement(index, e.target.value)}
+                      placeholder="e.g., 3+ years of React experience"
+                    />
+                    {formData.requirements.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeRequirement(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addRequirement}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Requirement
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Tech Stack */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tech Stack</CardTitle>
+                <CardDescription>Technologies used at this company</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Add Technology</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newTech}
+                      onChange={(e) => setNewTech(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          addTech()
+                        }
+                      }}
+                      placeholder="e.g., React, Node.js, MongoDB"
+                    />
+                    <Button type="button" onClick={addTech}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {formData.techStack.length > 0 && (
+                  <div>
+                    <Label>Added Technologies ({formData.techStack.length})</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.techStack.map((tech, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-sm"
+                        >
+                          <span>{tech}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeTech(index)}
+                            className="hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Benefits */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Benefits & Perks</CardTitle>
+                <CardDescription>What benefits does the company offer?</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {formData.benefits.map((benefit, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={benefit}
+                      onChange={(e) => updateBenefit(index, e.target.value)}
+                      placeholder="e.g., Health Insurance, Remote Work"
+                    />
+                    {formData.benefits.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeBenefit(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addBenefit}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Benefit
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Eligibility Criteria */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Eligibility Criteria</CardTitle>
+                <CardDescription>Define minimum requirements for applicants</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="minCGPA">Minimum CGPA</Label>
+                    <Input
+                      id="minCGPA"
+                      type="number"
+                      step="0.01"
+                      value={formData.eligibilityCriteria.minCGPA || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        eligibilityCriteria: {
+                          ...prev.eligibilityCriteria,
+                          minCGPA: parseFloat(e.target.value) || null
+                        }
+                      }))}
+                      placeholder="e.g., 7.0"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="minPercentage">Minimum Percentage</Label>
+                    <Input
+                      id="minPercentage"
+                      type="number"
+                      value={formData.eligibilityCriteria.minPercentage || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        eligibilityCriteria: {
+                          ...prev.eligibilityCriteria,
+                          minPercentage: parseFloat(e.target.value) || null
+                        }
+                      }))}
+                      placeholder="e.g., 70"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="educationLevel">Education Level</Label>
+                    <select
+                      id="educationLevel"
+                      value={formData.eligibilityCriteria.educationLevel}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        eligibilityCriteria: {
+                          ...prev.eligibilityCriteria,
+                          educationLevel: e.target.value
+                        }
+                      }))}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                    >
+                      <option value="">Select Education</option>
+                      <option value="B.Tech">B.Tech</option>
+                      <option value="M.Tech">M.Tech</option>
+                      <option value="BCA">BCA</option>
+                      <option value="MCA">MCA</option>
+                      <option value="B.Sc">B.Sc</option>
+                      <option value="M.Sc">M.Sc</option>
+                      <option value="Any Graduate">Any Graduate</option>
+                      <option value="Any Post Graduate">Any Post Graduate</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="maxBacklogs">Maximum Backlogs</Label>
+                    <Input
+                      id="maxBacklogs"
+                      type="number"
+                      value={formData.eligibilityCriteria.maxBacklogs || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        eligibilityCriteria: {
+                          ...prev.eligibilityCriteria,
+                          maxBacklogs: parseInt(e.target.value) || null
+                        }
+                      }))}
+                      placeholder="e.g., 0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="ageLimit">Age Limit</Label>
+                  <Input
+                    id="ageLimit"
+                    type="number"
+                    value={formData.eligibilityCriteria.ageLimit || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      eligibilityCriteria: {
+                        ...prev.eligibilityCriteria,
+                        ageLimit: parseInt(e.target.value) || null
+                      }
+                    }))}
+                    placeholder="e.g., 28"
+                  />
+                </div>
               </CardContent>
             </Card>
 
