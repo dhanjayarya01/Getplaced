@@ -21,7 +21,9 @@ export function CompanyList() {
       const response = await apiService.companies.getAll({ limit: 20, sort: '-createdAt' })
       
       if (response.success) {
-        setCompanies(response.data)
+        // Filter only active companies for public view
+        const activeCompanies = response.data.filter((c: any) => c.isActive !== false)
+        setCompanies(activeCompanies)
       } else {
         setError(response.message || 'Failed to fetch companies')
       }

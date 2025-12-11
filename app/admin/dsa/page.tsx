@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiService } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Power } from "lucide-react"
 import Link from "next/link"
 import {
   Table,
@@ -43,6 +43,18 @@ export default function DSAAdminPage() {
       console.error('Error fetching problems:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleToggleActive = async (problemId: string, currentStatus: boolean) => {
+    try {
+      await apiService.dsa.update(problemId, { isActive: !currentStatus })
+      setProblems(problems.map(p => 
+        p._id === problemId ? { ...p, isActive: !currentStatus } : p
+      ))
+    } catch (error) {
+      console.error('Error toggling problem status:', error)
+      alert('Failed to toggle problem status')
     }
   }
 
@@ -88,6 +100,7 @@ export default function DSAAdminPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Problem #</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Difficulty</TableHead>
               <TableHead>Data Structures</TableHead>
@@ -106,6 +119,11 @@ export default function DSAAdminPage() {
             ) : (
               problems.map((problem) => (
                 <TableRow key={problem._id}>
+                  <TableCell>
+                    <span className="font-mono text-sm font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                      #{problem.problemNumber || 'N/A'}
+                    </span>
+                  </TableCell>
                   <TableCell className="font-medium">{problem.title}</TableCell>
                   <TableCell>
                     <span className={getDifficultyColor(problem.difficulty)}>
@@ -146,6 +164,14 @@ export default function DSAAdminPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleActive(problem._id, problem.isActive)}
+                        title={problem.isActive ? 'Deactivate (Hide)' : 'Activate (Show)'}
+                      >
+                        <Power className={`w-4 h-4 ${problem.isActive ? 'text-green-500' : 'text-gray-400'}`} />
+                      </Button>
                       <Link href={`/admin/dsa/edit/${problem._id}`}>
                         <Button variant="ghost" size="sm">
                           <Pencil className="w-4 h-4" />

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiService } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Power } from "lucide-react"
 import Link from "next/link"
 import {
   Table,
@@ -43,6 +43,18 @@ export default function DevelopmentAdminPage() {
       console.error('Error fetching problems:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleToggleActive = async (problemId: string, currentStatus: boolean) => {
+    try {
+      await apiService.development.update(problemId, { isActive: !currentStatus })
+      setProblems(problems.map(p => 
+        p._id === problemId ? { ...p, isActive: !currentStatus } : p
+      ))
+    } catch (error) {
+      console.error('Error toggling problem status:', error)
+      alert('Failed to toggle problem status')
     }
   }
 
@@ -134,6 +146,14 @@ export default function DevelopmentAdminPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleActive(problem._id, problem.isActive)}
+                        title={problem.isActive ? 'Deactivate (Hide)' : 'Activate (Show)'}
+                      >
+                        <Power className={`w-4 h-4 ${problem.isActive ? 'text-green-500' : 'text-gray-400'}`} />
+                      </Button>
                       <Link href={`/admin/development/edit/${problem._id}`}>
                         <Button variant="ghost" size="sm">
                           <Pencil className="w-4 h-4" />

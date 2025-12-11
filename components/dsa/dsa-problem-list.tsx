@@ -43,7 +43,9 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
 
       const response = await apiService.dsa.getAll(params)
       if (response.success) {
-        setProblems(response.data)
+        // Filter only active problems for public view
+        const activeProblems = response.data.filter((p: any) => p.isActive !== false)
+        setProblems(activeProblems)
         setPagination(response.pagination)
       }
     } catch (error) {

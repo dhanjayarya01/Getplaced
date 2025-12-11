@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiService } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Plus, Pencil, Building2 } from "lucide-react"
+import { Plus, Pencil, Building2, Trash2, Power } from "lucide-react"
 import Link from "next/link"
 import {
   Table,
@@ -13,10 +13,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function CompaniesAdminPage() {
   const [companies, setCompanies] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCompanies()
@@ -32,6 +43,31 @@ export default function CompaniesAdminPage() {
       console.error('Error fetching companies:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleToggleActive = async (companyId: string, currentStatus: boolean) => {
+    try {
+      await apiService.companies.update(companyId, { isActive: !currentStatus })
+      setCompanies(companies.map(c => 
+        c._id === companyId ? { ...c, isActive: !currentStatus } : c
+      ))
+    } catch (error) {
+      console.error('Error toggling company status:', error)
+      alert('Failed to toggle company status')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+
+    try {
+      await apiService.companies.delete(deleteId)
+      setCompanies(companies.filter(c => c._id !== deleteId))
+      setDeleteId(null)
+    } catch (error) {
+      console.error('Error deleting company:', error)
+      alert('Failed to delete company')
     }
   }
 
@@ -115,11 +151,28 @@ export default function CompaniesAdminPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link href={`/admin/companies/edit/${company._id}`}>
-                      <Button variant="ghost" size="sm">
-                        <Pencil className="w-4 h-4" />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleActive(company._id, company.isActive)}
+                        title={company.isActive ? 'Deactivate (Hide)' : 'Activate (Show)'}
+                      >
+                        <Power className={`w-4 h-4 ${company.isActive ? 'text-green-500' : 'text-gray-400'}`} />
                       </Button>
-                    </Link>
+                      <Link href={`/admin/companies/edit/${company._id}`}>
+                        <Button variant="ghost" size="sm">
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteId(company._id)}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -127,6 +180,24 @@ export default function CompaniesAdminPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the company and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

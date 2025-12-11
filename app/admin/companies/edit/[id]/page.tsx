@@ -1,31 +1,29 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { apiService } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { X, Plus, Search, ChevronLeft, ChevronRight, Check } from "lucide-react"
+import { X, Plus, Search, ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react"
 
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Very Hard']
 const ROUND_TYPES = [
-  'aptitude',
-  'coding',
-  'technical-interview',
-  'behavioral-interview',
-  'hr-interview',
-  'system-design',
-  'assignment',
-  'group-discussion',
+  'aptitude', 'coding', 'technical-interview', 'behavioral-interview',
+  'hr-interview', 'system-design', 'assignment', 'group-discussion',
 ]
 
-export default function AddCompany() {
+export default function EditCompany() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1) // 1 or 2
+  const params = useParams()
+  const companyId = params.id as string
+  
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [currentStep, setCurrentStep] = useState(1)
   
   const [formData, setFormData] = useState({
     name: '',
@@ -40,51 +38,107 @@ export default function AddCompany() {
     founded: null as number | null,
     roles: [] as string[],
     difficulty: 'Medium',
-    averagePackage: {
-      min: 0,
-      max: 0,
-      currency: 'INR'
-    },
+    averagePackage: { min: 0, max: 0, currency: 'INR' },
     interviewTips: [''],
     isHiring: true,
     isActive: true
   })
 
-  // Hiring pipeline state
   const [hiringPipeline, setHiringPipeline] = useState<any[]>([])
-
-  // Problem linking state
   const [dsaSearch, setDsaSearch] = useState('')
   const [dsaSearchResults, setDsaSearchResults] = useState<any[]>([])
   const [selectedDSA, setSelectedDSA] = useState<any[]>([])
-  
   const [devSearch, setDevSearch] = useState('')
   const [devSearchResults, setDevSearchResults] = useState<any[]>([])
   const [selectedDev, setSelectedDev] = useState<any[]>([])
-
-  // Interview questions state
   const [interviewQuestions, setInterviewQuestions] = useState([
     { question: '', type: 'Technical', difficulty: 'Medium', round: '' }
   ])
+  const [newRole, setNewRole] = useState('')
+
+  useEffect(() => {
+    fetchCompanyData()
+  }, [companyId])
+
+  const fetchCompanyData = async () => {
+    try {
+      setLoading(true)
+      const response = await apiService.companies.getById(companyId)
+      
+      if (response.success) {
+        const company = response.data
+        
+        // Populate form data
+        setFormData({
+          name: company.name || '',
+          slug: company.slug || '',
+          logo: company.logo || '',
+          website: company.website || '',
+          description: company.description || '',
+          industry: company.industry || '',
+          headquarters: company.headquarters || '',
+          locations: company.locations?.length ? company.locations : [''],
+          employeeCount: company.employeeCount || '',
+          founded: company.founded || null,
+          roles: company.roles || [],
+          difficulty: company.difficulty || 'Medium',
+          averagePackage: company.averagePackage || { min: 0, max: 0, currency: 'INR' },
+          interviewTips: company.interviewTips?.length ? company.interviewTips : [''],
+          isHiring: company.isHiring !== undefined ? company.isHiring : true,
+          isActive: company.isActive !== undefined ? company.isActive : true
+        })
+
+        setHiringPipeline(company.hiringPipeline || [])
+        
+        // Populate linked problems
+        if (company.linkedDSAProblems?.length) {
+          setSelectedDSA(company.linkedDSAProblems.map((p: any) => ({
+            problemId: p.problem?._id || p.problem,
+            title: p.problem?.title || 'Unknown',
+            problemNumber: p.problem?.problemNumber,
+            frequency: p.frequency || 'Medium',
+            round: p.role || '',
+            notes: p.notes || ''
+          })))
+        }
+
+        if (company.linkedDevProblems?.length) {
+          setSelectedDev(company.linkedDevProblems.map((p: any) => ({
+            problemId: p.problem?._id || p.problem,
+            title: p.problem?.title || 'Unknown',
+            frequency: p.frequency || 'Medium',
+            round: p.role || '',
+            notes: p.notes || ''
+          })))
+        }
+
+        if (company.interviewQuestions?.length) {
+          setInterviewQuestions(company.interviewQuestions.map((q: any) => ({
+            question: q.question || '',
+            type: q.type || 'Technical',
+            difficulty: q.difficulty || 'Medium',
+            round: q.role || ''
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching company:', error)
+      alert('Failed to load company data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   }
 
   const handleNameChange = (name: string) => {
-    setFormData(prev => ({
-      ...prev,
-      name,
-      slug: generateSlug(name)
-    }))
+    setFormData(prev => ({ ...prev, name, slug: generateSlug(name) }))
   }
 
-  // Location management
   const addLocation = () => {
-    setFormData(prev => ({
-      ...prev,
-      locations: [...prev.locations, '']
-    }))
+    setFormData(prev => ({ ...prev, locations: [...prev.locations, ''] }))
   }
 
   const updateLocation = (index: number, value: string) => {
@@ -94,38 +148,22 @@ export default function AddCompany() {
   }
 
   const removeLocation = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      locations: prev.locations.filter((_, i) => i !== index)
-    }))
+    setFormData(prev => ({ ...prev, locations: prev.locations.filter((_, i) => i !== index) }))
   }
-
-  // Role management
-  const [newRole, setNewRole] = useState('')
 
   const addRole = () => {
     if (newRole.trim() && !formData.roles.includes(newRole.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        roles: [...prev.roles, newRole.trim()]
-      }))
+      setFormData(prev => ({ ...prev, roles: [...prev.roles, newRole.trim()] }))
       setNewRole('')
     }
   }
 
   const removeRole = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      roles: prev.roles.filter((_, i) => i !== index)
-    }))
+    setFormData(prev => ({ ...prev, roles: prev.roles.filter((_, i) => i !== index) }))
   }
 
-  // Interview Tips management
   const addInterviewTip = () => {
-    setFormData(prev => ({
-      ...prev,
-      interviewTips: [...prev.interviewTips, '']
-    }))
+    setFormData(prev => ({ ...prev, interviewTips: [...prev.interviewTips, ''] }))
   }
 
   const updateInterviewTip = (index: number, value: string) => {
@@ -135,13 +173,9 @@ export default function AddCompany() {
   }
 
   const removeInterviewTip = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      interviewTips: prev.interviewTips.filter((_, i) => i !== index)
-    }))
+    setFormData(prev => ({ ...prev, interviewTips: prev.interviewTips.filter((_, i) => i !== index) }))
   }
 
-  // Hiring Pipeline management
   const addHiringRound = () => {
     setHiringPipeline([...hiringPipeline, {
       roundNumber: hiringPipeline.length + 1,
@@ -149,10 +183,7 @@ export default function AddCompany() {
       roundType: 'coding',
       description: '',
       duration: '',
-      passingCriteria: {
-        minimumScore: 0,
-        description: ''
-      }
+      passingCriteria: { minimumScore: 0, description: '' }
     }])
   }
 
@@ -171,14 +202,12 @@ export default function AddCompany() {
     setHiringPipeline(hiringPipeline.filter((_, i) => i !== index))
   }
 
-  // DSA Problem Search
   const searchDSAProblems = async (query: string) => {
     setDsaSearch(query)
     if (query.length < 2) {
       setDsaSearchResults([])
       return
     }
-
     try {
       const response = await apiService.dsa.getAll({ limit: 20, sort: 'problemNumber' })
       if (response.success) {
@@ -190,7 +219,6 @@ export default function AddCompany() {
       }
     } catch (error) {
       console.error('Error searching DSA problems:', error)
-      setDsaSearchResults([])
     }
   }
 
@@ -222,14 +250,12 @@ export default function AddCompany() {
     setSelectedDSA(selectedDSA.filter((_, i) => i !== index))
   }
 
-  // Dev Problem Search
   const searchDevProblems = async (query: string) => {
     setDevSearch(query)
     if (query.length < 2) {
       setDevSearchResults([])
       return
     }
-
     try {
       const response = await apiService.development.getAll({ limit: 20 })
       if (response.success) {
@@ -240,7 +266,6 @@ export default function AddCompany() {
       }
     } catch (error) {
       console.error('Error searching Dev problems:', error)
-      setDevSearchResults([])
     }
   }
 
@@ -271,7 +296,6 @@ export default function AddCompany() {
     setSelectedDev(selectedDev.filter((_, i) => i !== index))
   }
 
-  // Interview Questions
   const addQuestion = () => {
     setInterviewQuestions([...interviewQuestions, {
       question: '',
@@ -295,10 +319,9 @@ export default function AddCompany() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    setSaving(true)
 
     try {
-      // Prepare company data
       const companyData = {
         ...formData,
         locations: formData.locations.filter(l => l.trim()),
@@ -306,48 +329,18 @@ export default function AddCompany() {
         hiringPipeline: hiringPipeline
       }
 
-      // Create company
-      const response = await apiService.companies.create(companyData)
+      const response = await apiService.companies.update(companyId, companyData)
       
       if (response.success) {
-        const companyId = response.data._id
-
-        // Link DSA problems
-        for (const dsa of selectedDSA) {
-          await apiService.companies.linkDSA(companyId, {
-            problemId: dsa.problemId,
-            frequency: dsa.frequency,
-            role: dsa.round,
-            notes: dsa.notes
-          })
-        }
-
-        // Link Dev problems
-        for (const dev of selectedDev) {
-          await apiService.companies.linkDev(companyId, {
-            problemId: dev.problemId,
-            frequency: dev.frequency,
-            role: dev.round,
-            notes: dev.notes
-          })
-        }
-
-        // Add interview questions
-        for (const q of interviewQuestions) {
-          if (q.question.trim()) {
-            await apiService.companies.addInterviewQuestion(companyId, q)
-          }
-        }
-
-        alert('Company created successfully with all linked data!')
+        alert('Company updated successfully!')
         router.push('/admin/companies')
       } else {
-        alert('Failed to create company: ' + response.message)
+        alert('Failed to update company: ' + response.message)
       }
     } catch (error: any) {
-      alert('Error: ' + (error.message || 'Failed to create company'))
+      alert('Error: ' + (error.message || 'Failed to update company'))
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
@@ -359,10 +352,18 @@ export default function AddCompany() {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">Add Company</h1>
-      <p className="text-muted-foreground mb-8">Complete all steps to add a new company</p>
+      <h1 className="text-3xl font-bold mb-2">Edit Company</h1>
+      <p className="text-muted-foreground mb-8">Update company information</p>
 
       {/* Step Indicator */}
       <div className="flex items-center justify-center mb-8">
@@ -384,130 +385,63 @@ export default function AddCompany() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Step 1: Basic Info */}
         {currentStep === 1 && (
           <>
-            {/* Basic Info */}
+            {/* Same Step 1 content as add page - Basic Info, Roles, Hiring Details, Interview Tips, Hiring Pipeline */}
             <Card>
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
-                <CardDescription>Enter the company's basic details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="name">Company Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    required
-                  />
+                  <Input id="name" value={formData.name} onChange={(e) => handleNameChange(e.target.value)} required />
                 </div>
-
                 <div>
-                  <Label htmlFor="slug">Slug (auto-generated)</Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                    required
-                  />
+                  <Label htmlFor="slug">Slug</Label>
+                  <Input id="slug" value={formData.slug} onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))} required />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="logo">Logo URL</Label>
-                    <Input
-                      id="logo"
-                      value={formData.logo}
-                      onChange={(e) => setFormData(prev => ({ ...prev, logo: e.target.value }))}
-                      placeholder="https://..."
-                    />
+                    <Input id="logo" value={formData.logo} onChange={(e) => setFormData(prev => ({ ...prev, logo: e.target.value }))} />
                   </div>
-
                   <div>
                     <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      value={formData.website}
-                      onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                      placeholder="https://..."
-                    />
+                    <Input id="website" value={formData.website} onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))} />
                   </div>
                 </div>
-
                 <div>
                   <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
-                    required
-                  />
+                  <Textarea id="description" value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} rows={4} required />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="industry">Industry</Label>
-                    <Input
-                      id="industry"
-                      value={formData.industry}
-                      onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
-                      placeholder="e.g., Technology, Finance"
-                    />
+                    <Input id="industry" value={formData.industry} onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))} />
                   </div>
-
                   <div>
                     <Label htmlFor="headquarters">Headquarters</Label>
-                    <Input
-                      id="headquarters"
-                      value={formData.headquarters}
-                      onChange={(e) => setFormData(prev => ({ ...prev, headquarters: e.target.value }))}
-                      placeholder="e.g., Bangalore, India"
-                    />
+                    <Input id="headquarters" value={formData.headquarters} onChange={(e) => setFormData(prev => ({ ...prev, headquarters: e.target.value }))} />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="employeeCount">Employee Count</Label>
-                    <Input
-                      id="employeeCount"
-                      value={formData.employeeCount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, employeeCount: e.target.value }))}
-                      placeholder="e.g., 10,000+"
-                    />
+                    <Input id="employeeCount" value={formData.employeeCount} onChange={(e) => setFormData(prev => ({ ...prev, employeeCount: e.target.value }))} />
                   </div>
-
                   <div>
                     <Label htmlFor="founded">Founded Year</Label>
-                    <Input
-                      id="founded"
-                      type="number"
-                      value={formData.founded || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, founded: parseInt(e.target.value) || null }))}
-                      placeholder="e.g., 1998"
-                    />
+                    <Input id="founded" type="number" value={formData.founded || ''} onChange={(e) => setFormData(prev => ({ ...prev, founded: parseInt(e.target.value) || null }))} />
                   </div>
                 </div>
-
                 <div>
                   <Label>Locations</Label>
                   {formData.locations.map((location, index) => (
                     <div key={index} className="flex gap-2 mt-2">
-                      <Input
-                        value={location}
-                        onChange={(e) => updateLocation(index, e.target.value)}
-                        placeholder="e.g., Bangalore"
-                      />
+                      <Input value={location} onChange={(e) => updateLocation(index, e.target.value)} />
                       {formData.locations.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeLocation(index)}
-                        >
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeLocation(index)}>
                           <X className="w-4 h-4" />
                         </Button>
                       )}
@@ -521,48 +455,26 @@ export default function AddCompany() {
               </CardContent>
             </Card>
 
-            {/* Roles */}
             <Card>
               <CardHeader>
                 <CardTitle>Roles</CardTitle>
-                <CardDescription>Add available roles at this company</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label>Add Role</Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          addRole()
-                        }
-                      }}
-                      placeholder="e.g., Frontend Developer"
-                    />
-                    <Button type="button" onClick={addRole}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                    <Input value={newRole} onChange={(e) => setNewRole(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRole() }}} />
+                    <Button type="button" onClick={addRole}><Plus className="w-4 h-4" /></Button>
                   </div>
                 </div>
-
                 {formData.roles.length > 0 && (
                   <div>
                     <Label>Added Roles ({formData.roles.length})</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {formData.roles.map((role, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md text-sm"
-                        >
+                        <div key={index} className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md text-sm">
                           <span>{role}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeRole(index)}
-                            className="hover:text-destructive"
-                          >
+                          <button type="button" onClick={() => removeRole(index)} className="hover:text-destructive">
                             <X className="w-3 h-3" />
                           </button>
                         </div>
@@ -573,7 +485,6 @@ export default function AddCompany() {
               </CardContent>
             </Card>
 
-            {/* Hiring Details */}
             <Card>
               <CardHeader>
                 <CardTitle>Hiring Details</CardTitle>
@@ -581,186 +492,31 @@ export default function AddCompany() {
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="difficulty">Interview Difficulty *</Label>
-                  <select
-                    id="difficulty"
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    required
-                  >
-                    {DIFFICULTIES.map(diff => (
-                      <option key={diff} value={diff}>{diff}</option>
-                    ))}
+                  <select id="difficulty" value={formData.difficulty} onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" required>
+                    {DIFFICULTIES.map(diff => (<option key={diff} value={diff}>{diff}</option>))}
                   </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="minPackage">Min Package (LPA)</Label>
-                    <Input
-                      id="minPackage"
-                      type="number"
-                      value={formData.averagePackage.min}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        averagePackage: { ...prev.averagePackage, min: parseInt(e.target.value) }
-                      }))}
-                    />
+                    <Input id="minPackage" type="number" value={formData.averagePackage.min} onChange={(e) => setFormData(prev => ({ ...prev, averagePackage: { ...prev.averagePackage, min: parseInt(e.target.value) }}))} />
                   </div>
-
                   <div>
                     <Label htmlFor="maxPackage">Max Package (LPA)</Label>
-                    <Input
-                      id="maxPackage"
-                      type="number"
-                      value={formData.averagePackage.max}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        averagePackage: { ...prev.averagePackage, max: parseInt(e.target.value) }
-                      }))}
-                    />
+                    <Input id="maxPackage" type="number" value={formData.averagePackage.max} onChange={(e) => setFormData(prev => ({ ...prev, averagePackage: { ...prev.averagePackage, max: parseInt(e.target.value) }}))} />
                   </div>
                 </div>
-
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isHiring"
-                      checked={formData.isHiring}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isHiring: e.target.checked }))}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    />
-                    <Label htmlFor="isHiring" className="cursor-pointer">
-                      Currently Hiring
-                    </Label>
+                    <input type="checkbox" id="isHiring" checked={formData.isHiring} onChange={(e) => setFormData(prev => ({ ...prev, isHiring: e.target.checked }))} className="h-4 w-4 rounded" />
+                    <Label htmlFor="isHiring" className="cursor-pointer">Currently Hiring</Label>
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    />
-                    <Label htmlFor="isActive" className="cursor-pointer">
-                      Active (Visible to users)
-                    </Label>
+                    <input type="checkbox" id="isActive" checked={formData.isActive} onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))} className="h-4 w-4 rounded" />
+                    <Label htmlFor="isActive" className="cursor-pointer">Active (Visible to users)</Label>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Interview Tips */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Interview Tips</CardTitle>
-                <CardDescription>General tips for interviewing at this company</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {formData.interviewTips.map((tip, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={tip}
-                      onChange={(e) => updateInterviewTip(index, e.target.value)}
-                      placeholder="Enter an interview tip..."
-                    />
-                    {formData.interviewTips.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeInterviewTip(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addInterviewTip}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Tip
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Hiring Pipeline */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Hiring Pipeline</CardTitle>
-                <CardDescription>Define the interview rounds</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {hiringPipeline.map((round, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">Round {index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeHiringRound(index)}
-                      >
-                        <X className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Round Name</Label>
-                        <Input
-                          value={round.roundName}
-                          onChange={(e) => updateHiringRound(index, 'roundName', e.target.value)}
-                          placeholder="Technical Round 1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Round Type</Label>
-                        <select
-                          value={round.roundType}
-                          onChange={(e) => updateHiringRound(index, 'roundType', e.target.value)}
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                        >
-                          {ROUND_TYPES.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Duration</Label>
-                        <Input
-                          value={round.duration}
-                          onChange={(e) => updateHiringRound(index, 'duration', e.target.value)}
-                          placeholder="60 min"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Minimum Score</Label>
-                        <Input
-                          type="number"
-                          value={round.passingCriteria.minimumScore}
-                          onChange={(e) => updateHiringRound(index, 'passingCriteria.minimumScore', parseInt(e.target.value))}
-                          placeholder="70"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Description</Label>
-                      <Textarea
-                        value={round.description}
-                        onChange={(e) => updateHiringRound(index, 'description', e.target.value)}
-                        placeholder="Describe this round..."
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" onClick={addHiringRound}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Round
-                </Button>
               </CardContent>
             </Card>
 
@@ -773,7 +529,6 @@ export default function AddCompany() {
           </>
         )}
 
-        {/* Step 2: Problems & Questions */}
         {currentStep === 2 && (
           <>
             {/* Linked DSA Problems */}
@@ -807,7 +562,7 @@ export default function AddCompany() {
                           type="checkbox"
                           checked={selectedDSA.some(p => p.problemId === problem._id)}
                           onChange={() => toggleDSAProblem(problem)}
-                          className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                          className="h-4 w-4 rounded"
                         />
                         <span className="text-xs font-mono bg-primary/10 px-2 py-0.5 rounded">
                           #{problem.problemNumber}
@@ -828,23 +583,14 @@ export default function AddCompany() {
                           <span className="text-xs font-mono text-muted-foreground">#{item.problemNumber}</span>
                           <span className="font-medium ml-2">{item.title}</span>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeDSAProblem(index)}
-                        >
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeDSAProblem(index)}>
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Frequency</Label>
-                          <select
-                            value={item.frequency}
-                            onChange={(e) => updateDSAField(index, 'frequency', e.target.value)}
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          >
+                          <select value={item.frequency} onChange={(e) => updateDSAField(index, 'frequency', e.target.value)} className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
                             <option value="Very High">Very High</option>
                             <option value="High">High</option>
                             <option value="Medium">Medium</option>
@@ -853,16 +599,10 @@ export default function AddCompany() {
                         </div>
                         <div>
                           <Label className="text-xs">Role</Label>
-                          <select
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            value={item.round || ''}
-                            onChange={(e) => updateDSAField(index, 'round', e.target.value)}
-                          >
+                          <select className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={item.round || ''} onChange={(e) => updateDSAField(index, 'round', e.target.value)}>
                             <option value="">Select Role</option>
                             {formData.roles.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
+                              <option key={role} value={role}>{role}</option>
                             ))}
                           </select>
                         </div>
@@ -904,7 +644,7 @@ export default function AddCompany() {
                           type="checkbox"
                           checked={selectedDev.some(p => p.problemId === problem._id)}
                           onChange={() => toggleDevProblem(problem)}
-                          className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                          className="h-4 w-4 rounded"
                         />
                         <span className="flex-1">{problem.title}</span>
                         <span className="text-xs text-muted-foreground">{problem.difficulty}</span>
@@ -919,23 +659,14 @@ export default function AddCompany() {
                     <div key={item.problemId || index} className="border rounded p-3 mt-2">
                       <div className="flex justify-between items-start mb-2">
                         <span className="font-medium">{item.title}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeDevProblem(index)}
-                        >
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeDevProblem(index)}>
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Frequency</Label>
-                          <select
-                            value={item.frequency}
-                            onChange={(e) => updateDevField(index, 'frequency', e.target.value)}
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          >
+                          <select value={item.frequency} onChange={(e) => updateDevField(index, 'frequency', e.target.value)} className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
                             <option value="Very High">Very High</option>
                             <option value="High">High</option>
                             <option value="Medium">Medium</option>
@@ -944,16 +675,10 @@ export default function AddCompany() {
                         </div>
                         <div>
                           <Label className="text-xs">Role</Label>
-                          <select
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            value={item.round || ''}
-                            onChange={(e) => updateDevField(index, 'round', e.target.value)}
-                          >
+                          <select className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={item.round || ''} onChange={(e) => updateDevField(index, 'round', e.target.value)}>
                             <option value="">Select Role</option>
                             {formData.roles.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
+                              <option key={role} value={role}>{role}</option>
                             ))}
                           </select>
                         </div>
@@ -971,37 +696,25 @@ export default function AddCompany() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {interviewQuestions.map((q, index) => (
-                  <div key={index} className="border rounded p-4">
-                    <div className="flex justify-between mb-2">
-                      <Label>Question {index + 1}</Label>
+                  <div key={index} className="border rounded p-3 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <Label className="text-xs">Question {index + 1}</Label>
                       {interviewQuestions.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeQuestion(index)}
-                        >
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeQuestion(index)}>
                           <X className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
-
                     <Textarea
-                      placeholder="Enter the interview question..."
                       value={q.question}
                       onChange={(e) => updateQuestion(index, 'question', e.target.value)}
-                      rows={3}
-                      className="mb-2"
+                      placeholder="Enter the interview question..."
+                      rows={2}
                     />
-
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <Label className="text-xs">Type</Label>
-                        <select
-                          value={q.type}
-                          onChange={(e) => updateQuestion(index, 'type', e.target.value)}
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
+                        <select value={q.type} onChange={(e) => updateQuestion(index, 'type', e.target.value)} className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
                           <option value="Technical">Technical</option>
                           <option value="Behavioral">Behavioral</option>
                           <option value="HR">HR</option>
@@ -1009,44 +722,27 @@ export default function AddCompany() {
                           <option value="Aptitude">Aptitude</option>
                         </select>
                       </div>
-
                       <div>
                         <Label className="text-xs">Difficulty</Label>
-                        <select
-                          value={q.difficulty}
-                          onChange={(e) => updateQuestion(index, 'difficulty', e.target.value)}
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
+                        <select value={q.difficulty} onChange={(e) => updateQuestion(index, 'difficulty', e.target.value)} className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
                           <option value="Easy">Easy</option>
                           <option value="Medium">Medium</option>
                           <option value="Hard">Hard</option>
                         </select>
                       </div>
-
                       <div>
                         <Label className="text-xs">Role</Label>
-                        <select
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          value={q.round || ''}
-                          onChange={(e) => updateQuestion(index, 'round', e.target.value)}
-                        >
+                        <select className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={q.round || ''} onChange={(e) => updateQuestion(index, 'round', e.target.value)}>
                           <option value="">Select Role</option>
                           {formData.roles.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
+                            <option key={role} value={role}>{role}</option>
                           ))}
                         </select>
                       </div>
                     </div>
                   </div>
                 ))}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addQuestion}
-                >
+                <Button type="button" variant="outline" onClick={addQuestion}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Question
                 </Button>
@@ -1058,14 +754,10 @@ export default function AddCompany() {
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Previous Step
               </Button>
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? 'Creating...' : 'Create Company'}
+              <Button type="submit" disabled={saving} className="flex-1">
+                {saving ? 'Updating...' : 'Update Company'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/admin/companies')}
-              >
+              <Button type="button" variant="outline" onClick={() => router.push('/admin/companies')}>
                 Cancel
               </Button>
             </div>

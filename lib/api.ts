@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-// Base API configuration
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
-// Create axios instance with default config
+
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true, // Important: Send cookies with requests
@@ -259,6 +259,15 @@ class ApiService {
         addInterviewQuestion: async (id: string, data: any) => {
             try {
                 const response = await apiClient.post(`/api/companies/${id}/interview-question`, data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        delete: async (id: string) => {
+            try {
+                const response = await apiClient.delete(`/api/companies/${id}`)
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
