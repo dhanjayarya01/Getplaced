@@ -33,7 +33,8 @@ export default function AddDSAProblem() {
       javascript: '',
       python: '',
       java: '',
-      cpp: ''
+      cpp: '',
+      c: ''
     },
     testCases: [{ input: '', expectedOutput: '', isHidden: false }],
     solution: {
@@ -42,6 +43,13 @@ export default function AddDSAProblem() {
       timeComplexity: '',
       spaceComplexity: '',
       explanation: ''
+    },
+    // Execution Metadata
+    functionName: '',
+    parameters: [] as Array<{ name: string; cType: string; sizeParam?: string }>,
+    returnType: {
+      cType: 'int',
+      sizeParam: ''
     }
   })
 
@@ -397,6 +405,129 @@ export default function AddDSAProblem() {
           </CardContent>
         </Card>
 
+        {/* Execution Metadata */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Execution Metadata (Auto-Wrapper for C/C++)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="functionName">Function Name</Label>
+              <Input
+                id="functionName"
+                value={formData.functionName}
+                onChange={(e) => setFormData(prev => ({ ...prev, functionName: e.target.value }))}
+                placeholder="e.g., twoSum, lengthOfLongestSubstring"
+              />
+            </div>
+
+            <div>
+              <Label>Parameters</Label>
+              <div className="space-y-2">
+                {formData.parameters.map((param, index) => (
+                  <div key={index} className="border p-3 rounded-md space-y-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-semibold">Parameter {index + 1}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newParams = formData.parameters.filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, parameters: newParams }));
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Name</Label>
+                        <Input
+                          value={param.name}
+                          onChange={(e) => {
+                            const newParams = [...formData.parameters];
+                            newParams[index].name = e.target.value;
+                            setFormData(prev => ({ ...prev, parameters: newParams }));
+                          }}
+                          placeholder="nums, target, s"
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">C Type</Label>
+                        <Input
+                          value={param.cType}
+                          onChange={(e) => {
+                            const newParams = [...formData.parameters];
+                            newParams[index].cType = e.target.value;
+                            setFormData(prev => ({ ...prev, parameters: newParams }));
+                          }}
+                          placeholder="int, int*, char*"
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Size Param (optional, for arrays)</Label>
+                      <Input
+                        value={param.sizeParam || ''}
+                        onChange={(e) => {
+                          const newParams = [...formData.parameters];
+                          newParams[index].sizeParam = e.target.value;
+                          setFormData(prev => ({ ...prev, parameters: newParams }));
+                        }}
+                        placeholder="numsSize, arrLen"
+                        className="h-8"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({ 
+                    ...prev, 
+                    parameters: [...prev.parameters, { name: '', cType: 'int', sizeParam: '' }] 
+                  }))}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Parameter
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                For twoSum: {'[{name: "nums", cType: "int*", sizeParam: "numsSize"}, {name: "target", cType: "int"}]'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Return C Type</Label>
+                <Input
+                  value={formData.returnType.cType}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    returnType: { ...prev.returnType, cType: e.target.value } 
+                  }))}
+                  placeholder="int, int*, char*, void"
+                />
+              </div>
+              <div>
+                <Label>Return Size Param (optional)</Label>
+                <Input
+                  value={formData.returnType.sizeParam}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    returnType: { ...prev.returnType, sizeParam: e.target.value } 
+                  }))}
+                  placeholder="returnSize"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Starter Code */}
         <Card>
           <CardHeader>
@@ -459,6 +590,21 @@ export default function AddDSAProblem() {
                 }))}
                 rows={6}
                 placeholder="class Solution {&#10;public:&#10;    vector<int> twoSum(vector<int>& nums, int target) {&#10;        // Write your solution here&#10;        return {};&#10;    }&#10;};"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="starterCodeC">C</Label>
+              <Textarea
+                id="starterCodeC"
+                value={formData.starterCode.c || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  starterCode: { ...prev.starterCode, c: e.target.value }
+                }))}
+                rows={6}
+                placeholder="#include <stdio.h>&#10;&#10;void solution() {&#10;    // Write your solution here&#10;}"
                 className="font-mono text-sm"
               />
             </div>

@@ -44,12 +44,15 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
         setProblem(problemData)
         
         // Use last submitted code if available, otherwise use starter code
+        // We also format the code to replace literal '\n' sequences with actual newlines
+        const formatCode = (c: string) => c ? c.replace(/\\n/g, '\n') : ''
+
         if (response.data.lastSubmissionCode) {
-          setCode(response.data.lastSubmissionCode)
+          setCode(formatCode(response.data.lastSubmissionCode))
           setLanguage(response.data.lastSubmissionLanguage || "javascript")
         } else {
           const starterCode = problemData.starterCode?.[language] || getDefaultStarterCode(language)
-          setCode(starterCode)
+          setCode(formatCode(starterCode))
         }
       } else {
         setError(response.message || 'Failed to fetch problem')
@@ -73,8 +76,10 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
 
   const handleLanguageChange = (newLanguage: string) => {
     setLanguage(newLanguage)
-    const starterCode = problem?.starterCode?.[newLanguage] || getDefaultStarterCode(newLanguage)
-    setCode(starterCode)
+    // Switch to starter code for the new language
+    const newStarterCode = problem?.starterCode?.[newLanguage] || getDefaultStarterCode(newLanguage)
+    // Format code to unescape literal '\n'
+    setCode(newStarterCode ? newStarterCode.replace(/\\n/g, '\n') : '')
   }
 
   const handleReset = () => {
