@@ -50,6 +50,18 @@ export default function AddDSAProblem() {
     returnType: {
       cType: 'int',
       sizeParam: ''
+    },
+    // Java Metadata
+    javaMetadata: {
+      functionName: '',
+      parameters: [] as Array<{ name: string; type: string }>,
+      returnType: { type: 'int' }
+    },
+    // Python Metadata
+    pythonMetadata: {
+        functionName: '',
+        parameters: [] as Array<{ name: string; type: string }>,
+        returnType: { type: 'int' }
     }
   })
 
@@ -405,19 +417,22 @@ export default function AddDSAProblem() {
           </CardContent>
         </Card>
 
-        {/* Execution Metadata */}
+        {/* Execution Metadata - C/C++ */}
         <Card>
           <CardHeader>
-            <CardTitle>Execution Metadata (Auto-Wrapper for C/C++)</CardTitle>
+            <CardTitle>Execution Metadata (C/C++)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+             <div className="bg-muted p-3 rounded-md mb-4 text-sm text-muted-foreground">
+                <p>This metadata is used to auto-generate the driver code for C and C++.</p>
+            </div>
             <div>
               <Label htmlFor="functionName">Function Name</Label>
               <Input
                 id="functionName"
                 value={formData.functionName}
                 onChange={(e) => setFormData(prev => ({ ...prev, functionName: e.target.value }))}
-                placeholder="e.g., twoSum, lengthOfLongestSubstring"
+                placeholder="e.g., twoSum"
               />
             </div>
 
@@ -425,13 +440,12 @@ export default function AddDSAProblem() {
               <Label>Parameters</Label>
               <div className="space-y-2">
                 {formData.parameters.map((param, index) => (
-                  <div key={index} className="border p-3 rounded-md space-y-2">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-semibold">Parameter {index + 1}</span>
-                      <Button
+                  <div key={index} className="border p-3 rounded-md space-y-2 relative">
+                    <Button
                         type="button"
                         variant="ghost"
                         size="sm"
+                        className="absolute right-2 top-2 h-6 w-6 p-0"
                         onClick={() => {
                           const newParams = formData.parameters.filter((_, i) => i !== index);
                           setFormData(prev => ({ ...prev, parameters: newParams }));
@@ -439,7 +453,6 @@ export default function AddDSAProblem() {
                       >
                         <X className="w-4 h-4" />
                       </Button>
-                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-xs">Name</Label>
@@ -450,26 +463,36 @@ export default function AddDSAProblem() {
                             newParams[index].name = e.target.value;
                             setFormData(prev => ({ ...prev, parameters: newParams }));
                           }}
-                          placeholder="nums, target, s"
+                          placeholder="nums"
                           className="h-8"
                         />
                       </div>
                       <div>
                         <Label className="text-xs">C Type</Label>
-                        <Input
-                          value={param.cType}
-                          onChange={(e) => {
-                            const newParams = [...formData.parameters];
-                            newParams[index].cType = e.target.value;
-                            setFormData(prev => ({ ...prev, parameters: newParams }));
-                          }}
-                          placeholder="int, int*, char*"
-                          className="h-8"
-                        />
+                         <Select
+                            value={param.cType}
+                            onValueChange={(value) => {
+                                const newParams = [...formData.parameters];
+                                newParams[index].cType = value;
+                                setFormData(prev => ({ ...prev, parameters: newParams }));
+                            }}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="int">int</SelectItem>
+                              <SelectItem value="int*">int* (Array)</SelectItem>
+                              <SelectItem value="char*">char* (String)</SelectItem>
+                              <SelectItem value="float">float</SelectItem>
+                              <SelectItem value="double">double</SelectItem>
+                              <SelectItem value="bool">bool</SelectItem>
+                            </SelectContent>
+                          </Select>
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">Size Param (optional, for arrays)</Label>
+                      <Label className="text-xs">Size Param (optional)</Label>
                       <Input
                         value={param.sizeParam || ''}
                         onChange={(e) => {
@@ -477,7 +500,7 @@ export default function AddDSAProblem() {
                           newParams[index].sizeParam = e.target.value;
                           setFormData(prev => ({ ...prev, parameters: newParams }));
                         }}
-                        placeholder="numsSize, arrLen"
+                        placeholder="numsSize"
                         className="h-8"
                       />
                     </div>
@@ -496,25 +519,34 @@ export default function AddDSAProblem() {
                   Add Parameter
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                For twoSum: {'[{name: "nums", cType: "int*", sizeParam: "numsSize"}, {name: "target", cType: "int"}]'}
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Return C Type</Label>
-                <Input
-                  value={formData.returnType.cType}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    returnType: { ...prev.returnType, cType: e.target.value } 
-                  }))}
-                  placeholder="int, int*, char*, void"
-                />
+                 <Select
+                    value={formData.returnType.cType}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                        ...prev, 
+                        returnType: { ...prev.returnType, cType: value } 
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="int">int</SelectItem>
+                      <SelectItem value="int*">int* (Array)</SelectItem>
+                      <SelectItem value="char*">char* (String)</SelectItem>
+                      <SelectItem value="float">float</SelectItem>
+                      <SelectItem value="double">double</SelectItem>
+                      <SelectItem value="bool">bool</SelectItem>
+                      <SelectItem value="void">void</SelectItem>
+                    </SelectContent>
+                  </Select>
               </div>
               <div>
-                <Label>Return Size Param (optional)</Label>
+                <Label>Return Size Param</Label>
                 <Input
                   value={formData.returnType.sizeParam}
                   onChange={(e) => setFormData(prev => ({ 
@@ -524,6 +556,196 @@ export default function AddDSAProblem() {
                   placeholder="returnSize"
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Execution Metadata - Java */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Execution Metadata (Java)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="bg-muted p-3 rounded-md mb-4 text-sm text-muted-foreground">
+                <p>Specific metadata for generating Java wrappers. Uses standard Java types.</p>
+            </div>
+            <div>
+              <Label>Function Name</Label>
+              <Input
+                value={formData.javaMetadata.functionName}
+                onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    javaMetadata: { ...prev.javaMetadata, functionName: e.target.value } 
+                }))}
+                placeholder="e.g., twoSum"
+              />
+            </div>
+            <div>
+              <Label>Parameters</Label>
+               <div className="space-y-2">
+                {formData.javaMetadata.parameters.map((param, index) => (
+                   <div key={index} className="border p-3 rounded-md grid grid-cols-2 gap-2 relative">
+                      <Button type="button" variant="ghost" size="sm" className="absolute top-1 right-1 h-6 w-6 p-0" onClick={() => {
+                          const newParams = formData.javaMetadata.parameters.filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, javaMetadata: { ...prev.javaMetadata, parameters: newParams } }));
+                      }}><X className="w-3 h-3" /></Button>
+                      <div>
+                        <Label className="text-xs">Name</Label>
+                        <Input value={param.name} onChange={(e) => {
+                            const newParams = [...formData.javaMetadata.parameters];
+                            newParams[index].name = e.target.value;
+                            setFormData(prev => ({ ...prev, javaMetadata: { ...prev.javaMetadata, parameters: newParams } }));
+                            }} placeholder="Name" className="h-8"/>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Type</Label>
+                        <Select
+                            value={param.type}
+                            onValueChange={(value) => {
+                                const newParams = [...formData.javaMetadata.parameters];
+                                newParams[index].type = value;
+                                setFormData(prev => ({ ...prev, javaMetadata: { ...prev.javaMetadata, parameters: newParams } }));
+                            }}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="int">int</SelectItem>
+                              <SelectItem value="int[]">int[]</SelectItem>
+                              <SelectItem value="String">String</SelectItem>
+                              <SelectItem value="double">double</SelectItem>
+                              <SelectItem value="boolean">boolean</SelectItem>
+                              <SelectItem value="List<Integer>">List&lt;Integer&gt;</SelectItem>
+                            </SelectContent>
+                          </Select>
+                      </div>
+                   </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => setFormData(prev => ({ 
+                    ...prev, 
+                    javaMetadata: { ...prev.javaMetadata, parameters: [...prev.javaMetadata.parameters, { name: '', type: 'int' }] } 
+                  }))}><Plus className="w-4 h-4 mr-2" />Add Parameter</Button>
+              </div>
+            </div>
+             <div>
+                <Label>Return Type</Label>
+                 <Select
+                    value={formData.javaMetadata.returnType.type}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                        ...prev, 
+                        javaMetadata: { ...prev.javaMetadata, returnType: { type: value } } 
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="int">int</SelectItem>
+                      <SelectItem value="int[]">int[]</SelectItem>
+                      <SelectItem value="String">String</SelectItem>
+                      <SelectItem value="double">double</SelectItem>
+                      <SelectItem value="boolean">boolean</SelectItem>
+                      <SelectItem value="List<Integer>">List&lt;Integer&gt;</SelectItem>
+                      <SelectItem value="void">void</SelectItem>
+                    </SelectContent>
+                  </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Execution Metadata - Python */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Execution Metadata (Python)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-muted p-3 rounded-md mb-4 text-sm text-muted-foreground">
+                <p>Specific metadata for generating Python wrappers. Uses Python type hints.</p>
+            </div>
+            <div>
+              <Label>Function Name</Label>
+              <Input
+                value={formData.pythonMetadata.functionName}
+                onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    pythonMetadata: { ...prev.pythonMetadata, functionName: e.target.value } 
+                }))}
+                placeholder="e.g., twoSum"
+              />
+            </div>
+            <div>
+              <Label>Parameters</Label>
+               <div className="space-y-2">
+                {formData.pythonMetadata.parameters.map((param, index) => (
+                   <div key={index} className="border p-3 rounded-md grid grid-cols-2 gap-2 relative">
+                      <Button type="button" variant="ghost" size="sm" className="absolute top-1 right-1 h-6 w-6 p-0" onClick={() => {
+                          const newParams = formData.pythonMetadata.parameters.filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, pythonMetadata: { ...prev.pythonMetadata, parameters: newParams } }));
+                      }}><X className="w-3 h-3" /></Button>
+                      <div>
+                        <Label className="text-xs">Name</Label>
+                        <Input value={param.name} onChange={(e) => {
+                            const newParams = [...formData.pythonMetadata.parameters];
+                            newParams[index].name = e.target.value;
+                            setFormData(prev => ({ ...prev, pythonMetadata: { ...prev.pythonMetadata, parameters: newParams } }));
+                            }} placeholder="Name" className="h-8"/>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Type</Label>
+                         <Select
+                            value={param.type}
+                            onValueChange={(value) => {
+                                const newParams = [...formData.pythonMetadata.parameters];
+                                newParams[index].type = value;
+                                setFormData(prev => ({ ...prev, pythonMetadata: { ...prev.pythonMetadata, parameters: newParams } }));
+                            }}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="int">int</SelectItem>
+                              <SelectItem value="float">float</SelectItem>
+                              <SelectItem value="str">str</SelectItem>
+                              <SelectItem value="bool">bool</SelectItem>
+                              <SelectItem value="List[int]">List[int]</SelectItem>
+                              <SelectItem value="List[float]">List[float]</SelectItem>
+                              <SelectItem value="List[str]">List[str]</SelectItem>
+                            </SelectContent>
+                          </Select>
+                      </div>
+                   </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => setFormData(prev => ({ 
+                    ...prev, 
+                    pythonMetadata: { ...prev.pythonMetadata, parameters: [...prev.pythonMetadata.parameters, { name: '', type: 'int' }] } 
+                  }))}><Plus className="w-4 h-4 mr-2" />Add Parameter</Button>
+              </div>
+            </div>
+             <div>
+                <Label>Return Type</Label>
+                <Select
+                    value={formData.pythonMetadata.returnType.type}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                        ...prev, 
+                        pythonMetadata: { ...prev.pythonMetadata, returnType: { type: value } } 
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="int">int</SelectItem>
+                      <SelectItem value="float">float</SelectItem>
+                      <SelectItem value="str">str</SelectItem>
+                      <SelectItem value="bool">bool</SelectItem>
+                      <SelectItem value="List[int]">List[int]</SelectItem>
+                      <SelectItem value="List[float]">List[float]</SelectItem>
+                      <SelectItem value="List[str]">List[str]</SelectItem>
+                      <SelectItem value="None">None</SelectItem>
+                    </SelectContent>
+                  </Select>
             </div>
           </CardContent>
         </Card>
