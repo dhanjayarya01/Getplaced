@@ -42,8 +42,15 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
       if (response.success) {
         const problemData = response.data.problem || response.data
         setProblem(problemData)
-        const starterCode = problemData.starterCode?.[language] || getDefaultStarterCode(language)
-        setCode(starterCode)
+        
+        // Use last submitted code if available, otherwise use starter code
+        if (response.data.lastSubmissionCode) {
+          setCode(response.data.lastSubmissionCode)
+          setLanguage(response.data.lastSubmissionLanguage || "javascript")
+        } else {
+          const starterCode = problemData.starterCode?.[language] || getDefaultStarterCode(language)
+          setCode(starterCode)
+        }
       } else {
         setError(response.message || 'Failed to fetch problem')
       }
@@ -59,6 +66,7 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
       case 'python': return '# Write your solution here\ndef solution():\n    pass'
       case 'java': return '// Write your solution here\nclass Solution {\n    public void solution() {\n        \n    }\n}'
       case 'cpp': return '// Write your solution here\nvoid solution() {\n    \n}'
+      case 'c': return '// Write your solution here\n#include <stdio.h>\n\nvoid solution() {\n    // Read from stdin, print to stdout\n}'
       default: return '// Write your solution here\nfunction solution() {\n  \n}'
     }
   }
@@ -313,6 +321,7 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
                 <SelectItem value="python">Python</SelectItem>
                 <SelectItem value="java">Java</SelectItem>
                 <SelectItem value="cpp">C++</SelectItem>
+                <SelectItem value="c">C</SelectItem>
               </SelectContent>
             </Select>
           </div>
