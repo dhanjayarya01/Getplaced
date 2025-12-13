@@ -4,9 +4,11 @@ import axios from 'axios'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 
+console.log('API Base URL:$$$$$$$$', API_BASE_URL);
+
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    withCredentials: true, 
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
