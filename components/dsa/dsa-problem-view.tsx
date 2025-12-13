@@ -24,9 +24,12 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
   const [code, setCode] = useState("")
   const [language, setLanguage] = useState("javascript")
   const [activeTab, setActiveTab] = useState<"problem" | "solution" | "discussion">("problem")
+  const [activeResultTab, setActiveResultTab] = useState<"testcases" | "custom">("testcases")
   const [testResults, setTestResults] = useState<any>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [customInput, setCustomInput] = useState("")
+  const [selectedTestCase, setSelectedTestCase] = useState<number>(0)
 
   useEffect(() => {
     fetchProblem()
@@ -34,56 +37,61 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
 
   const fetchProblem = async () => {
     try {
-      console.log('Fetching problem with ID/slug:', problemId)
       const response = await apiService.dsa.getById(problemId)
-      console.log('Problem API response:', response)
-      
+      console.log("response__id________", response.data.recentSubmissions)
       if (response.success) {
-        // API returns { success: true, data: { problem, userProgress, recentSubmissions } }
         const problemData = response.data.problem || response.data
-        console.log('Problem data:', problemData)
         setProblem(problemData)
-        
-        // Set starter code based on selected language
-        const starterCode = problemData.starterCode?.[language] || `// Write your solution here\nfunction solution() {\n  \n}`
+        const starterCode = problemData.starterCode?.[language] || getDefaultStarterCode(language)
         setCode(starterCode)
       } else {
-        const errorMsg = response.message || 'Failed to fetch problem'
-        console.error('API returned error:', errorMsg)
-        setError(errorMsg)
+        setError(response.message || 'Failed to fetch problem')
       }
     } catch (error: any) {
-      console.error('Error fetching problem:', error)
-      const errorMsg = error.message || error.toString() || 'Unknown error occurred'
-      setError(errorMsg)
+      setError(error.message || 'Unknown error occurred')
     } finally {
       setLoading(false)
     }
   }
 
+  const getDefaultStarterCode = (lang: string) => {
+    switch (lang) {
+      case 'python': return '# Write your solution here\ndef solution():\n    pass'
+      case 'java': return '// Write your solution here\nclass Solution {\n    public void solution() {\n        \n    }\n}'
+      case 'cpp': return '// Write your solution here\nvoid solution() {\n    \n}'
+      default: return '// Write your solution here\nfunction solution() {\n  \n}'
+    }
+  }
+
   const handleLanguageChange = (newLanguage: string) => {
     setLanguage(newLanguage)
-    const starterCode = problem?.starterCode?.[newLanguage] || `// Write your solution here\nfunction solution() {\n  \n}`
+    const starterCode = problem?.starterCode?.[newLanguage] || getDefaultStarterCode(newLanguage)
     setCode(starterCode)
   }
 
   const handleReset = () => {
-    const starterCode = problem?.starterCode?.[language] || `// Write your solution here\nfunction solution() {\n  \n}`
+    const starterCode = problem?.starterCode?.[language] || getDefaultStarterCode(language)
     setCode(starterCode)
   }
 
   const handleRun = async () => {
     setIsRunning(true)
+    setTestResults(null)
+    setActiveResultTab("testcases")
     try {
-      // Run code against test cases
-      const response = await apiService.dsa.submit(problemId, {
+      const response = await apiService.dsa.run(problemId, {
         code,
-        language,
-        isTest: true // Only run visible test cases
+        language
       })
-      setTestResults(response.data)
-    } catch (error) {
+      setTestResults({ ...response.data, type: 'run' })
+      if (!response.data.accepted) {
+        // Auto-select first failed test case
+        const firstFailedIndex = response.data.testResults.findIndex((r: any) => !r.passed)
+        if (firstFailedIndex !== -1) setSelectedTestCase(firstFailedIndex)
+      }
+    } catch (error: any) {
       console.error('Error running code:', error)
+      setTestResults({ error: error.message || 'Execution failed', type: 'error' })
     } finally {
       setIsRunning(false)
     }
@@ -91,19 +99,17 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
+    setTestResults(null)
+    setActiveResultTab("testcases")
     try {
-      // Submit code for all test cases
       const response = await apiService.dsa.submit(problemId, {
         code,
-        language,
-        isTest: false // Run all test cases including hidden
+        language
       })
-      setTestResults(response.data)
-      if (response.data.accepted) {
-        alert('✅ Accepted! All test cases passed!')
-      }
-    } catch (error) {
+      setTestResults({ ...response.data, type: 'submit' })
+    } catch (error: any) {
       console.error('Error submitting code:', error)
+      setTestResults({ error: error.message || 'Submission failed', type: 'error' })
     } finally {
       setIsSubmitting(false)
     }
@@ -129,33 +135,17 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
     )
   }
 
-  if (error) {
+  if (error || !problem) {
     return (
       <div className="h-[calc(100vh-64px)] flex items-center justify-center">
         <div className="text-center max-w-md">
-          <p className="text-red-500 mb-4">Error loading problem</p>
-          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <p className="text-red-500 mb-4">{error || 'Problem not found'}</p>
           <div className="flex gap-2 justify-center">
             <Link href="/dsa">
               <Button>Back to Problems</Button>
             </Link>
-            <Button variant="outline" onClick={fetchProblem}>
-              Retry
-            </Button>
+            <Button variant="outline" onClick={fetchProblem}>Retry</Button>
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!problem) {
-    return (
-      <div className="h-[calc(100vh-64px)] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 mb-4">Problem not found</p>
-          <Link href="/dsa">
-            <Button>Back to Problems</Button>
-          </Link>
         </div>
       </div>
     )
@@ -229,15 +219,15 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
                 <div key={index}>
                   <h3 className="text-lg font-semibold mt-6 mb-3">Example {index + 1}:</h3>
                   <div className="bg-secondary rounded-lg p-4 font-mono text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Input:</span> {example.input}
+                    <div className="mb-2">
+                       <span className="font-semibold text-foreground">Input:</span> <span className="text-muted-foreground">{example.input}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Output:</span> {example.output}
+                       <span className="font-semibold text-foreground">Output:</span> <span className="text-muted-foreground">{example.output}</span>
                     </div>
                     {example.explanation && (
                       <div className="text-muted-foreground mt-2">
-                        Explanation: {example.explanation}
+                        <span className="font-semibold text-foreground">Explanation:</span> {example.explanation}
                       </div>
                     )}
                   </div>
@@ -278,13 +268,13 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
               {problem.solution ? (
                 <>
                   <p className="text-muted-foreground mb-4">{problem.solution.explanation}</p>
-                  <div className="bg-[#1e1e1e] rounded p-4">
+                  <div className="bg-[#1e1e1e] rounded p-4 mb-4">
                     <pre className="font-mono text-sm overflow-x-auto text-foreground">
                       {problem.solution.code}
                     </pre>
                   </div>
                   {problem.solution.timeComplexity && (
-                    <p className="mt-4 text-sm">
+                    <p className="text-sm">
                       <span className="font-semibold">Time Complexity:</span> {problem.solution.timeComplexity}
                     </p>
                   )}
@@ -310,12 +300,12 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
       </div>
 
       {/* Right Panel - Code Editor */}
-      <div className="w-1/2 flex flex-col">
+      <div className="w-1/2 flex flex-col h-full">
         {/* Editor Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
+        <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <Select value={language} onValueChange={handleLanguageChange}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-32 h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -326,16 +316,14 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={handleReset}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-xs">
+            <RotateCcw className="w-3 h-3 mr-2" />
+            Reset
+          </Button>
         </div>
 
         {/* Monaco Editor */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-h-0">
           <Editor
             height="100%"
             language={language}
@@ -348,67 +336,140 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
               lineNumbers: "on",
               scrollBeyondLastLine: false,
               automaticLayout: true,
+              padding: { top: 16, bottom: 16 },
             }}
           />
         </div>
 
-        {/* Action Buttons */}
-        <div className="px-4 py-3 bg-card border-t border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRun}
-              disabled={isRunning}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              {isRunning ? 'Running...' : 'Run'}
-            </Button>
+        {/* Test Results Panel */}
+        <div className="shrink-0 bg-card border-t border-border flex flex-col max-h-[40%] flex-1">
+          {/* Action Header */}
+          <div className="px-4 py-2 border-b border-border flex items-center justify-between bg-secondary/30">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveResultTab("testcases")}
+                className={`text-sm font-medium transition-colors ${activeResultTab === "testcases" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Test Cases
+              </button>
+              {/* Custom Input (Placeholder for future)
+              <button
+                onClick={() => setActiveResultTab("custom")}
+                className={`text-sm font-medium transition-colors ${activeResultTab === "custom" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Custom Input
+              </button>
+              */}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={handleRun}
+                disabled={isRunning}
+                className="h-8"
+              >
+                <Play className="w-3 h-3 mr-2" />
+                {isRunning ? 'Running...' : 'Run Code'}
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="h-8 bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit'}
+              </Button>
+            </div>
           </div>
-          <Button 
-            size="sm" 
-            className="bg-primary text-primary-foreground"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            <Check className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Submitting...' : 'Submit'}
-          </Button>
-        </div>
 
-        {/* Test Results */}
-        <div className="h-48 bg-card border-t border-border p-4 overflow-y-auto">
-          <div className="text-sm">
-            <div className="font-medium mb-2">Test Results</div>
+          {/* Results Content */}
+          <div className="flex-1 overflow-hidden flex flex-col">
             {testResults ? (
-              <div className="space-y-2">
-                {testResults.testCases?.map((tc: any, index: number) => (
-                  <div key={index} className="flex items-start gap-2">
-                    {tc.passed ? (
-                      <Check className="w-4 h-4 text-green-500 mt-0.5" />
-                    ) : (
-                      <X className="w-4 h-4 text-red-500 mt-0.5" />
-                    )}
-                    <div className="flex-1">
-                      <div className={tc.passed ? 'text-green-500' : 'text-red-500'}>
-                        Test case {index + 1} {tc.passed ? 'passed' : 'failed'}
+               testResults.type === 'error' ? (
+                  <div className="p-4 text-red-500 font-mono text-sm overflow-auto">
+                    {testResults.error}
+                  </div>
+               ) : (
+                <div className="flex h-full">
+                  {/* Test Case List */}
+                  <div className="w-40 border-r border-border overflow-y-auto p-2 space-y-1 bg-secondary/10">
+                    <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase">Cases</div>
+                    {testResults.testResults?.map((tc: any, index: number) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedTestCase(index)}
+                        className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between ${
+                          selectedTestCase === index ? "bg-secondary text-foreground" : "hover:bg-secondary/50 text-muted-foreground"
+                        }`}
+                      >
+                         <span>Case {index + 1}</span>
+                         {tc.passed ? <span className="text-green-500">●</span> : <span className="text-red-500">●</span>}
+                      </button>
+                    ))}
+                  </div>
+                  
+                   {/* Test Case Details */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                   {testResults.accepted && (
+                      <div className="mb-4 text-green-500 font-medium flex items-center gap-2">
+                        <Check className="w-4 h-4" />
+                        All Test Cases Passed!
+                        <span className="text-xs text-muted-foreground ml-auto">
+                           Runtime: {parseFloat(testResults.executionTime).toFixed(3)}s | Memory: {testResults.memoryUsed}KB
+                        </span>
                       </div>
-                      {!tc.passed && tc.error && (
-                        <div className="text-xs text-muted-foreground mt-1">{tc.error}</div>
-                      )}
-                    </div>
+                    )}
+                    
+                    {testResults.testResults?.[selectedTestCase] && (
+                        <div className="space-y-4 font-mono text-sm">
+                           {/* Status Message */}
+                           {!testResults.testResults[selectedTestCase].passed && (
+                              <div className="text-red-500 font-medium mb-2">
+                                 {testResults.testResults[selectedTestCase].status || 'Wrong Answer'}
+                              </div>
+                           )}
+
+                           <div>
+                              <div className="text-xs text-muted-foreground mb-1">Input</div>
+                              <div className="bg-secondary/50 p-3 rounded text-foreground whitespace-pre-wrap">
+                                 {testResults.testResults[selectedTestCase].input}
+                              </div>
+                           </div>
+                           <div>
+                              <div className="text-xs text-muted-foreground mb-1">Output</div>
+                              <div className={`p-3 rounded whitespace-pre-wrap ${
+                                 testResults.testResults[selectedTestCase].passed 
+                                 ? "bg-secondary/50 text-foreground" 
+                                 : "bg-red-500/10 text-red-500"
+                              }`}>
+                                 {testResults.testResults[selectedTestCase].actualOutput || <span className="italic text-muted-foreground">No output</span>}
+                              </div>
+                           </div>
+                           <div>
+                              <div className="text-xs text-muted-foreground mb-1">Expected</div>
+                              <div className="bg-secondary/50 p-3 rounded text-foreground whitespace-pre-wrap">
+                                 {testResults.testResults[selectedTestCase].expectedOutput}
+                              </div>
+                           </div>
+                           
+                           {testResults.testResults[selectedTestCase].error && (
+                              <div>
+                                 <div className="text-xs text-red-500 mb-1">Error</div>
+                                 <div className="bg-red-500/10 p-3 rounded text-red-500 whitespace-pre-wrap">
+                                    {testResults.testResults[selectedTestCase].error}
+                                 </div>
+                              </div>
+                           )}
+                        </div>
+                    )}
                   </div>
-                ))}
-                {testResults.accepted && (
-                  <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded text-green-500">
-                    ✅ Accepted! All test cases passed.
-                  </div>
-                )}
-              </div>
+                </div>
+               )
             ) : (
-              <div className="text-muted-foreground">
-                Run your code to see test results
-              </div>
+               <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                  Run or submit your code to see results
+               </div>
             )}
           </div>
         </div>

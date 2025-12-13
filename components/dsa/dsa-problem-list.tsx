@@ -43,6 +43,7 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
 
       const response = await apiService.dsa.getAll(params)
       if (response.success) {
+        console.log("response________", response)
         // Filter only active problems for public view
         const activeProblems = response.data.filter((p: any) => p.isActive !== false)
         setProblems(activeProblems)
@@ -71,6 +72,7 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
   const filteredProblems = problems.filter((problem) =>
     problem.title.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  
 
   if (loading) {
     return (
@@ -82,6 +84,15 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
       </div>
     )
   }
+console.log(
+  "filtered problems ________",
+  filteredProblems.map(p => ({
+    title: p.title,
+    status: p.userStatus === "solved" ? "solved" : "not solved"
+  }))
+);
+
+  console.log("filter problem problems________", filteredProblems)
 
   return (
     <div className="bg-card rounded-xl border border-border">
@@ -124,7 +135,7 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
 
               {/* Status Icon */}
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
-                {problem.solved ? (
+                {problem.userStatus === "solved" ? (
                   <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
                     <Check className="w-4 h-4 text-primary" />
                   </div>

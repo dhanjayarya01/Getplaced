@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    withCredentials: true, // Important: Send cookies with requests
+    withCredentials: true, 
     headers: {
         'Content-Type': 'application/json',
     },
@@ -60,6 +60,15 @@ class ApiService {
         getById: async (id: string) => {
             try {
                 const response = await apiClient.get(`/api/dsa/${id}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        run: async (id: string, data: any) => {
+            try {
+                const response = await apiClient.post(`/api/dsa/${id}/run`, data)
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
