@@ -42,8 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.success && response.user) {
         setIsAuthenticated(true)
         setUser(response.user)
+      } else {
+        setIsAuthenticated(false)
+        setUser(null)
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Auth check failed:', error)
       setIsAuthenticated(false)
       setUser(null)
     } finally {
@@ -67,7 +71,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshUser = async () => {
-    await checkAuthStatus()
+    setLoading(true)
+    try {
+      const response = await apiService.auth.getCurrentUser()
+      if (response.success && response.user) {
+        setIsAuthenticated(true)
+        setUser(response.user)
+      } else {
+        throw new Error('Failed to get user data')
+      }
+    } catch (error: any) {
+      console.error('Refresh user failed:', error)
+      setIsAuthenticated(false)
+      setUser(null)
+      throw error // Re-throw so callback page can handle it
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
