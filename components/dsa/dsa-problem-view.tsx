@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Play, Check, RotateCcw, ChevronLeft, Lightbulb, BookOpen, MessageSquare, X } from "lucide-react"
+import { Play, Check, RotateCcw, ChevronLeft, Lightbulb, BookOpen, MessageSquare, X, Building2 } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { apiService } from "@/lib/api"
@@ -183,6 +183,23 @@ export function DSAProblemView({ problemId }: DSAProblemViewProps) {
               {problem.difficulty}
             </span>
           </div>
+
+          {/* Companies Section */}
+          {problem.companies && problem.companies.length > 0 && (
+            <div className="mb-6 flex flex-wrap gap-2 items-center">
+                <span className="text-sm font-semibold text-muted-foreground mr-1">Asked in:</span>
+                {problem.companies.map((company: any) => (
+                    <Link 
+                        key={company._id} 
+                        href={`/companies/${company.slug}`}
+                        className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-xs rounded-md transition-colors"
+                    >
+                         <Building2 className="w-3 h-3" />
+                         {company.name}
+                    </Link>
+                ))}
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-2 mb-6">

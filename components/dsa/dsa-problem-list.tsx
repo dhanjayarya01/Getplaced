@@ -172,13 +172,16 @@ console.log(
               {/* Companies & Acceptance */}
               <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
                 {problem.companies && problem.companies.length > 0 && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 group relative" title={problem.companies.map((c: any) => c.name).join(", ")}>
                     <Building2 className="w-3 h-3" />
-                    <span>{problem.companies.slice(0, 2).join(", ")}</span>
+                    <span className="truncate max-w-[150px]">
+                        {problem.companies.slice(0, 2).map((c: any) => c.name).join(", ")}
+                        {problem.companies.length > 2 && ` +${problem.companies.length - 2}`}
+                    </span>
                   </div>
                 )}
                 {problem.acceptance && (
-                  <div className="w-16 text-right">{problem.acceptance}%</div>
+                  <div className="w-16 text-right">{Math.round(problem.acceptance)}%</div>
                 )}
               </div>
             </Link>

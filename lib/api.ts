@@ -258,6 +258,15 @@ class ApiService {
             }
         },
 
+        unlinkDSA: async (id: string, linkId: string) => {
+            try {
+                const response = await apiClient.delete(`/api/companies/${id}/link-dsa/${linkId}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
         linkDev: async (id: string, data: any) => {
             try {
                 const response = await apiClient.post(`/api/companies/${id}/link-dev`, data)
@@ -267,9 +276,27 @@ class ApiService {
             }
         },
 
+        unlinkDev: async (id: string, linkId: string) => {
+            try {
+                const response = await apiClient.delete(`/api/companies/${id}/link-dev/${linkId}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
         addInterviewQuestion: async (id: string, data: any) => {
             try {
                 const response = await apiClient.post(`/api/companies/${id}/interview-question`, data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        removeInterviewQuestion: async (id: string, questionId: string) => {
+            try {
+                const response = await apiClient.delete(`/api/companies/${id}/interview-question/${questionId}`)
                 return response.data
             } catch (error) {
                 throw this._handleError(error)

@@ -48,12 +48,21 @@ export default function EditCompany() {
   const [dsaSearch, setDsaSearch] = useState('')
   const [dsaSearchResults, setDsaSearchResults] = useState<any[]>([])
   const [selectedDSA, setSelectedDSA] = useState<any[]>([])
+  const [originalDSA, setOriginalDSA] = useState<any[]>([]) // Track original links with linkIds
   const [devSearch, setDevSearch] = useState('')
   const [devSearchResults, setDevSearchResults] = useState<any[]>([])
   const [selectedDev, setSelectedDev] = useState<any[]>([])
-  const [interviewQuestions, setInterviewQuestions] = useState([
+  const [originalDev, setOriginalDev] = useState<any[]>([]) // Track original links with linkIds
+  const [interviewQuestions, setInterviewQuestions] = useState<Array<{
+    questionId?: string
+    question: string
+    type: string
+    difficulty: string
+    round: string
+  }>>([
     { question: '', type: 'Technical', difficulty: 'Medium', round: '' }
   ])
+  const [originalQuestions, setOriginalQuestions] = useState<any[]>([]) // Track original questions with IDs
   const [newRole, setNewRole] = useState('')
 
   useEffect(() => {
@@ -90,35 +99,44 @@ export default function EditCompany() {
 
         setHiringPipeline(company.hiringPipeline || [])
         
-        // Populate linked problems
+        // Populate linked problems and track original links with linkIds
         if (company.linkedDSAProblems?.length) {
-          setSelectedDSA(company.linkedDSAProblems.map((p: any) => ({
+          const dsaProblems = company.linkedDSAProblems.map((p: any) => ({
+            linkId: p._id, // Store the link ID for unlinking
             problemId: p.problem?._id || p.problem,
             title: p.problem?.title || 'Unknown',
             problemNumber: p.problem?.problemNumber,
             frequency: p.frequency || 'Medium',
             round: p.role || '',
             notes: p.notes || ''
-          })))
+          }))
+          setSelectedDSA(dsaProblems)
+          setOriginalDSA(dsaProblems) // Store original for comparison
         }
 
         if (company.linkedDevProblems?.length) {
-          setSelectedDev(company.linkedDevProblems.map((p: any) => ({
+          const devProblems = company.linkedDevProblems.map((p: any) => ({
+            linkId: p._id, // Store the link ID for unlinking
             problemId: p.problem?._id || p.problem,
             title: p.problem?.title || 'Unknown',
             frequency: p.frequency || 'Medium',
             round: p.role || '',
             notes: p.notes || ''
-          })))
+          }))
+          setSelectedDev(devProblems)
+          setOriginalDev(devProblems) // Store original for comparison
         }
 
         if (company.interviewQuestions?.length) {
-          setInterviewQuestions(company.interviewQuestions.map((q: any) => ({
+          const questions = company.interviewQuestions.map((q: any) => ({
+            questionId: q._id, // Store the question ID for removal
             question: q.question || '',
             type: q.type || 'Technical',
             difficulty: q.difficulty || 'Medium',
             round: q.role || ''
-          })))
+          }))
+          setInterviewQuestions(questions)
+          setOriginalQuestions(questions) // Store original for comparison
         }
       }
     } catch (error) {
@@ -233,7 +251,8 @@ export default function EditCompany() {
         problemNumber: problem.problemNumber,
         frequency: 'Medium',
         round: '',
-        notes: ''
+        notes: '',
+        linkId: undefined // New problems don't have linkId yet
       }])
     }
   }
@@ -279,7 +298,8 @@ export default function EditCompany() {
         title: problem.title,
         frequency: 'Medium',
         round: '',
-        notes: ''
+        notes: '',
+        linkId: undefined // New problems don't have linkId yet
       }])
     }
   }
@@ -329,14 +349,145 @@ export default function EditCompany() {
         hiringPipeline: hiringPipeline
       }
 
+      // Update company basic data
       const response = await apiService.companies.update(companyId, companyData)
       
-      if (response.success) {
-        alert('Company updated successfully!')
-        router.push('/admin/companies')
-      } else {
+      if (!response.success) {
         alert('Failed to update company: ' + response.message)
+        setSaving(false)
+        return
       }
+
+      // Sync DSA Problems
+      // Find problems to unlink (in original but not in selected)
+      const dsaToUnlink = originalDSA.filter(original => 
+        !selectedDSA.some(selected => selected.problemId === original.problemId)
+      )
+      for (const dsa of dsaToUnlink) {
+        if (dsa.linkId) {
+          await apiService.companies.unlinkDSA(companyId, dsa.linkId)
+        }
+      }
+
+      // Find problems to link (in selected but not in original, or metadata changed)
+      for (const dsa of selectedDSA) {
+        const original = originalDSA.find(o => o.problemId === dsa.problemId)
+        const isNew = !original
+        const metadataChanged = original && (
+          original.frequency !== dsa.frequency ||
+          original.round !== dsa.round ||
+          original.notes !== dsa.notes
+        )
+
+        if (isNew) {
+          // Link new problem
+          await apiService.companies.linkDSA(companyId, {
+            problemId: dsa.problemId,
+            frequency: dsa.frequency,
+            role: dsa.round,
+            notes: dsa.notes
+          })
+        } else if (metadataChanged && original.linkId) {
+          // Unlink and relink to update metadata
+          await apiService.companies.unlinkDSA(companyId, original.linkId)
+          await apiService.companies.linkDSA(companyId, {
+            problemId: dsa.problemId,
+            frequency: dsa.frequency,
+            role: dsa.round,
+            notes: dsa.notes
+          })
+        }
+      }
+
+      // Sync Dev Problems (same logic as DSA)
+      const devToUnlink = originalDev.filter(original => 
+        !selectedDev.some(selected => selected.problemId === original.problemId)
+      )
+      for (const dev of devToUnlink) {
+        if (dev.linkId) {
+          await apiService.companies.unlinkDev(companyId, dev.linkId)
+        }
+      }
+
+      for (const dev of selectedDev) {
+        const original = originalDev.find(o => o.problemId === dev.problemId)
+        const isNew = !original
+        const metadataChanged = original && (
+          original.frequency !== dev.frequency ||
+          original.round !== dev.round ||
+          original.notes !== dev.notes
+        )
+
+        if (isNew) {
+          await apiService.companies.linkDev(companyId, {
+            problemId: dev.problemId,
+            frequency: dev.frequency,
+            role: dev.round,
+            notes: dev.notes
+          })
+        } else if (metadataChanged && original.linkId) {
+          await apiService.companies.unlinkDev(companyId, original.linkId)
+          await apiService.companies.linkDev(companyId, {
+            problemId: dev.problemId,
+            frequency: dev.frequency,
+            role: dev.round,
+            notes: dev.notes
+          })
+        }
+      }
+
+      // Sync Interview Questions
+      // Remove questions that are no longer in the list
+      const questionsToRemove = originalQuestions.filter(original => 
+        !interviewQuestions.some(current => 
+          current.questionId === original.questionId && 
+          current.question === original.question
+        )
+      )
+      for (const q of questionsToRemove) {
+        if (q.questionId) {
+          try {
+            await apiService.companies.removeInterviewQuestion(companyId, q.questionId)
+          } catch (error) {
+            console.error('Error removing question:', error)
+          }
+        }
+      }
+
+      // Add new questions or re-add changed questions
+      for (const q of interviewQuestions) {
+        if (!q.question.trim()) continue
+        
+        const original = originalQuestions.find(o => o.questionId === q.questionId)
+        const isNew = !original
+        const questionChanged = original && (
+          original.question !== q.question ||
+          original.type !== q.type ||
+          original.difficulty !== q.difficulty ||
+          original.round !== q.round
+        )
+
+        if (isNew || questionChanged) {
+          // If changed, remove old one first
+          if (questionChanged && original.questionId) {
+            try {
+              await apiService.companies.removeInterviewQuestion(companyId, original.questionId)
+            } catch (error) {
+              console.error('Error removing old question:', error)
+            }
+          }
+          // Add the question
+          await apiService.companies.addInterviewQuestion(companyId, {
+            question: q.question,
+            type: q.type,
+            difficulty: q.difficulty,
+            role: q.round
+          })
+        }
+      }
+
+      alert('Company updated successfully with all linked data!')
+      router.push('/admin/companies')
     } catch (error: any) {
       alert('Error: ' + (error.message || 'Failed to update company'))
     } finally {

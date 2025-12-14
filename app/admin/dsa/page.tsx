@@ -159,7 +159,7 @@ export default function DSAAdminPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {problem.companies?.slice(0, 2).join(', ')}
+                    {problem.companies?.map((c: any) => c.name).slice(0, 2).join(', ')}
                     {problem.companies?.length > 2 && ` +${problem.companies.length - 2}`}
                   </TableCell>
                   <TableCell className="text-right">
