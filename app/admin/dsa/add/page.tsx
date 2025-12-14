@@ -19,13 +19,34 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-const DATA_STRUCTURES = ['Array', 'String', 'Linked List', 'Stack', 'Queue', 'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie']
-const PATTERNS = ['Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS', 'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer']
+import { ChevronDown, ChevronUp } from "lucide-react"
+
+const DATA_STRUCTURES = [
+  'Array', 'String', 'Linked List', 'Doubly Linked List', 'Stack', 'Queue', 
+  'Monotonic Stack', 'Monotonic Queue', 'Tree', 'Binary Tree', 'BST', 'Trie', 
+  'Graph', 'Union Find', 'Hash Table', 'Heap', 'Matrix', 'Segment Tree', 
+  'Fenwick Tree', 'Suffix Array', 'Ordered Set'
+]
+
+const PATTERNS = [
+  'Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS', 
+  'Topological Sort', 'Shortest Path', 'Dynamic Programming', 'Greedy', 
+  'Backtracking', 'Divide and Conquer', 'Recursion', 'Sorting', 'Bucket Sort', 
+  'Radix Sort', 'Merge Sort', 'Quick Sort', 'Bit Manipulation', 'Math', 
+  'Geometry', 'Game Theory', 'Stack', 'Queue', 'Heap', 'Graph', 'Design', 
+  'Prefix Sum', 'Union Find', 'Simulation', 'Counting', 'Combinatorics', 
+  'Number Theory', 'Rolling Hash', 'Memoization', 'Interactive', 'Data Stream', 
+  'Brainteaser', 'Randomized', 'Reservoir Sampling', 'Probability', 'Line Sweep'
+]
+
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard']
 
 export default function AddDSAProblem() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [expandDS, setExpandDS] = useState(false)
+  const [expandPatterns, setExpandPatterns] = useState(false)
+  
   const [formData, setFormData] = useState({
     title: '',
     problemNumber: 1,
@@ -34,7 +55,7 @@ export default function AddDSAProblem() {
     difficulty: 'Easy',
     dataStructures: [] as string[],
     patterns: [] as string[],
-    companies: [] as string[],
+    // companies removed
     constraints: [''],
     examples: [{ input: '', output: '', explanation: '' }],
     starterCode: {
@@ -72,6 +93,8 @@ export default function AddDSAProblem() {
         returnType: { type: 'int' }
     }
   })
+
+  // ...
 
   const generateSlug = (title: string) => {
     return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
@@ -120,44 +143,21 @@ export default function AddDSAProblem() {
     }))
   }
 
-  const addCompany = (company: string) => {
-    if (company && !formData.companies.includes(company)) {
-      setFormData(prev => ({
-        ...prev,
-        companies: [...prev.companies, company]
-      }))
-    }
-  }
-
-  const removeCompany = (company: string) => {
-    setFormData(prev => ({
-      ...prev,
-      companies: prev.companies.filter(c => c !== company)
-    }))
-  }
-
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [jsonInput, setJsonInput] = useState('')
 
   const handleJsonImport = () => {
     try {
       const parsed = JSON.parse(jsonInput)
-      
-      // Basic validation or mapping could be done here if needed
-      // Currently assuming the JSON structure matches the formData structure or needs minimal mapping
-      
       const newFormData = { ...formData, ...parsed }
-      
-      // Ensure arrays are preserved even if missing in JSON
       newFormData.dataStructures = parsed.dataStructures || []
       newFormData.patterns = parsed.patterns || []
-      newFormData.companies = parsed.companies || []
+      // companies removed
       newFormData.constraints = parsed.constraints || ['']
       newFormData.examples = parsed.examples || [{ input: '', output: '', explanation: '' }]
       newFormData.testCases = parsed.testCases || [{ input: '', expectedOutput: '', isHidden: false }]
       newFormData.parameters = parsed.parameters || []
       
-      // Deep merge metadata objects if partial
       if(parsed.starterCode) newFormData.starterCode = { ...formData.starterCode, ...parsed.starterCode }
       if(parsed.solution) newFormData.solution = { ...formData.solution, ...parsed.solution }
       if(parsed.returnType) newFormData.returnType = { ...formData.returnType, ...parsed.returnType }
@@ -241,7 +241,7 @@ export default function AddDSAProblem() {
                 required
               />
             </div>
-
+            
             <div>
               <Label htmlFor="problemNumber">Problem Number *</Label>
               <Input
@@ -304,8 +304,21 @@ export default function AddDSAProblem() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Data Structures *</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex justify-between items-center">
+                <Label>Data Structures *</Label>
+                <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setExpandDS(!expandDS)}
+                    className="h-6 text-xs"
+                >
+                    {expandDS ? <><ChevronUp className="w-3 h-3 mr-1"/>Show Less</> : <><ChevronDown className="w-3 h-3 mr-1"/>Show All</>}
+                </Button>
+              </div>
+              <div className={`flex flex-wrap gap-2 mt-2 transition-all ${
+                  !expandDS ? "max-h-[88px] overflow-hidden" : ""
+              }`}>
                 {DATA_STRUCTURES.map(ds => (
                   <button
                     key={ds}
@@ -314,10 +327,10 @@ export default function AddDSAProblem() {
                       ...prev,
                       dataStructures: toggleArrayItem(prev.dataStructures, ds)
                     }))}
-                    className={`px-3 py-1 rounded text-sm ${
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
                       formData.dataStructures.includes(ds)
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-accent'
+                        : 'bg-accent hover:bg-accent/80'
                     }`}
                   >
                     {ds}
@@ -327,8 +340,21 @@ export default function AddDSAProblem() {
             </div>
 
             <div>
-              <Label>Patterns *</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex justify-between items-center">
+                 <Label>Patterns *</Label>
+                 <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setExpandPatterns(!expandPatterns)}
+                    className="h-6 text-xs"
+                >
+                    {expandPatterns ? <><ChevronUp className="w-3 h-3 mr-1"/>Show Less</> : <><ChevronDown className="w-3 h-3 mr-1"/>Show All</>}
+                </Button>
+              </div>
+              <div className={`flex flex-wrap gap-2 mt-2 transition-all ${
+                  !expandPatterns ? "max-h-[88px] overflow-hidden" : ""
+              }`}>
                 {PATTERNS.map(pattern => (
                   <button
                     key={pattern}
@@ -337,40 +363,14 @@ export default function AddDSAProblem() {
                       ...prev,
                       patterns: toggleArrayItem(prev.patterns, pattern)
                     }))}
-                    className={`px-3 py-1 rounded text-sm ${
+                    className={`px-3 py-1 rounded text-sm transition-colors ${
                       formData.patterns.includes(pattern)
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-accent'
+                        : 'bg-accent hover:bg-accent/80'
                     }`}
                   >
                     {pattern}
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label>Companies</Label>
-              <div className="flex gap-2 mt-2">
-                <Input
-                  placeholder="Add company name"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addCompany((e.target as HTMLInputElement).value);
-                      (e.target as HTMLInputElement).value = ''
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.companies.map(company => (
-                  <span key={company} className="bg-accent px-3 py-1 rounded text-sm flex items-center gap-2">
-                    {company}
-                    <button type="button" onClick={() => removeCompany(company)}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
                 ))}
               </div>
             </div>

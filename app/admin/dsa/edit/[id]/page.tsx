@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, Plus, FileJson } from "lucide-react"
+import { X, Plus, FileJson, ChevronDown, ChevronUp } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-const DATA_STRUCTURES = ['Array', 'String', 'Linked List', 'Stack', 'Queue', 'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie']
-const PATTERNS = ['Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS', 'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer']
+const DATA_STRUCTURES = [
+  'Array', 'String', 'Linked List', 'Doubly Linked List', 'Stack', 'Queue', 
+  'Monotonic Stack', 'Monotonic Queue', 'Tree', 'Binary Tree', 'BST', 'Trie', 
+  'Graph', 'Union Find', 'Hash Table', 'Heap', 'Matrix', 'Segment Tree', 
+  'Fenwick Tree', 'Suffix Array', 'Ordered Set'
+]
+
+const PATTERNS = [
+  'Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS', 
+  'Topological Sort', 'Shortest Path', 'Dynamic Programming', 'Greedy', 
+  'Backtracking', 'Divide and Conquer', 'Recursion', 'Sorting', 'Bucket Sort', 
+  'Radix Sort', 'Merge Sort', 'Quick Sort', 'Bit Manipulation', 'Math', 
+  'Geometry', 'Game Theory', 'Stack', 'Queue', 'Heap', 'Graph', 'Design', 
+  'Prefix Sum', 'Union Find', 'Simulation', 'Counting', 'Combinatorics', 
+  'Number Theory', 'Rolling Hash', 'Memoization', 'Interactive', 'Data Stream', 
+  'Brainteaser', 'Randomized', 'Reservoir Sampling', 'Probability', 'Line Sweep'
+]
+
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard']
 
 export default function EditDSAProblem({ params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +44,9 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [expandDS, setExpandDS] = useState(false)
+  const [expandPatterns, setExpandPatterns] = useState(false)
+
   const [formData, setFormData] = useState({
     title: '',
     problemNumber: 1,
@@ -36,7 +55,6 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
     difficulty: 'Easy',
     dataStructures: [] as string[],
     patterns: [] as string[],
-    companies: [] as string[],
     constraints: [''],
     examples: [{ input: '', output: '', explanation: '' }],
     starterCode: {
@@ -93,7 +111,6 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
           difficulty: problem.difficulty || 'Easy',
           dataStructures: problem.dataStructures || [],
           patterns: problem.patterns || [],
-          companies: problem.companies || [],
           constraints: problem.constraints?.length > 0 ? problem.constraints : [''],
           examples: problem.examples?.length > 0 ? problem.examples : [{ input: '', output: '', explanation: '' }],
           starterCode: problem.starterCode || { javascript: '', python: '', java: '', cpp: '', c: '' },
@@ -149,7 +166,6 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
       // Ensure arrays are preserved even if missing in JSON
       newFormData.dataStructures = parsed.dataStructures || []
       newFormData.patterns = parsed.patterns || []
-      newFormData.companies = parsed.companies || []
       newFormData.constraints = parsed.constraints || ['']
       newFormData.examples = parsed.examples || [{ input: '', output: '', explanation: '' }]
       newFormData.testCases = parsed.testCases || [{ input: '', expectedOutput: '', isHidden: false }]
@@ -310,8 +326,21 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Data Structures *</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex justify-between items-center">
+                 <Label>Data Structures *</Label>
+                 <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setExpandDS(!expandDS)}
+                    className="h-6 text-xs"
+                >
+                    {expandDS ? <><ChevronUp className="w-3 h-3 mr-1"/>Show Less</> : <><ChevronDown className="w-3 h-3 mr-1"/>Show All</>}
+                </Button>
+              </div>
+              <div className={`flex flex-wrap gap-2 mt-2 transition-all ${
+                  !expandDS ? "max-h-[88px] overflow-hidden" : ""
+              }`}>
                 {DATA_STRUCTURES.map(ds => (
                   <button
                     key={ds}
@@ -333,8 +362,21 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
             </div>
 
             <div>
-              <Label>Patterns *</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex justify-between items-center">
+                 <Label>Patterns *</Label>
+                 <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setExpandPatterns(!expandPatterns)}
+                    className="h-6 text-xs"
+                >
+                    {expandPatterns ? <><ChevronUp className="w-3 h-3 mr-1"/>Show Less</> : <><ChevronDown className="w-3 h-3 mr-1"/>Show All</>}
+                </Button>
+              </div>
+              <div className={`flex flex-wrap gap-2 mt-2 transition-all ${
+                  !expandPatterns ? "max-h-[88px] overflow-hidden" : ""
+              }`}>
                 {PATTERNS.map(pattern => (
                   <button
                     key={pattern}
