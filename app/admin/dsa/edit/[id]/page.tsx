@@ -9,7 +9,15 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, Plus } from "lucide-react"
+import { X, Plus, FileJson } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 const DATA_STRUCTURES = ['Array', 'String', 'Linked List', 'Stack', 'Queue', 'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie']
 const PATTERNS = ['Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS', 'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer']
@@ -126,6 +134,43 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
     return [...array, item]
   }
 
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [jsonInput, setJsonInput] = useState('')
+
+  const handleJsonImport = () => {
+    try {
+      const parsed = JSON.parse(jsonInput)
+      
+      // Basic validation or mapping could be done here if needed
+      // Currently assuming the JSON structure matches the formData structure or needs minimal mapping
+      
+      const newFormData = { ...formData, ...parsed }
+      
+      // Ensure arrays are preserved even if missing in JSON
+      newFormData.dataStructures = parsed.dataStructures || []
+      newFormData.patterns = parsed.patterns || []
+      newFormData.companies = parsed.companies || []
+      newFormData.constraints = parsed.constraints || ['']
+      newFormData.examples = parsed.examples || [{ input: '', output: '', explanation: '' }]
+      newFormData.testCases = parsed.testCases || [{ input: '', expectedOutput: '', isHidden: false }]
+      newFormData.parameters = parsed.parameters || []
+      
+      // Deep merge metadata objects if partial
+      if(parsed.starterCode) newFormData.starterCode = { ...formData.starterCode, ...parsed.starterCode }
+      if(parsed.solution) newFormData.solution = { ...formData.solution, ...parsed.solution }
+      if(parsed.returnType) newFormData.returnType = { ...formData.returnType, ...parsed.returnType }
+      if(parsed.javaMetadata) newFormData.javaMetadata = { ...formData.javaMetadata, ...parsed.javaMetadata }
+      if(parsed.pythonMetadata) newFormData.pythonMetadata = { ...formData.pythonMetadata, ...parsed.pythonMetadata }
+      
+      setFormData(newFormData)
+      setIsImportOpen(false)
+      setJsonInput('')
+      alert('Imported successfully!')
+    } catch (e) {
+      alert('Invalid JSON')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -158,7 +203,36 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">Edit DSA Problem</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Edit DSA Problem</h1>
+        <Button onClick={() => setIsImportOpen(true)} variant="outline">
+          <FileJson className="w-4 h-4 mr-2" />
+          Import JSON
+        </Button>
+      </div>
+
+      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Import Problem JSON</DialogTitle>
+            <DialogDescription>
+              Paste the full JSON object for the problem here. This will overwrite current form data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea 
+              className="font-mono text-xs h-[400px]" 
+              placeholder='{ "title": "...", "description": "..." }'
+              value={jsonInput}
+              onChange={(e) => setJsonInput(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImportOpen(false)}>Cancel</Button>
+            <Button onClick={handleJsonImport}>Import</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info - Same as add page */}
@@ -457,26 +531,16 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
                       </div>
                       <div>
                         <Label className="text-xs">C Type</Label>
-                         <Select
-                            value={param.cType}
-                            onValueChange={(value) => {
-                                const newParams = [...formData.parameters];
-                                newParams[index].cType = value;
-                                setFormData(prev => ({ ...prev, parameters: newParams }));
-                            }}
-                          >
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="int">int</SelectItem>
-                              <SelectItem value="int*">int* (Array)</SelectItem>
-                              <SelectItem value="char*">char* (String)</SelectItem>
-                              <SelectItem value="float">float</SelectItem>
-                              <SelectItem value="double">double</SelectItem>
-                              <SelectItem value="bool">bool</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <Input
+                          value={param.cType}
+                          onChange={(e) => {
+                            const newParams = [...formData.parameters];
+                            newParams[index].cType = e.target.value;
+                            setFormData(prev => ({ ...prev, parameters: newParams }));
+                          }}
+                          placeholder="Type (e.g., int, int*, struct ListNode*)"
+                          className="h-8"
+                        />
                       </div>
                     </div>
                     <div>
@@ -512,26 +576,14 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Return C Type</Label>
-                 <Select
+                 <Input
                     value={formData.returnType.cType}
-                    onValueChange={(value) => setFormData(prev => ({ 
+                    onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
-                        returnType: { ...prev.returnType, cType: value } 
+                        returnType: { ...prev.returnType, cType: e.target.value } 
                     }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="int">int</SelectItem>
-                      <SelectItem value="int*">int* (Array)</SelectItem>
-                      <SelectItem value="char*">char* (String)</SelectItem>
-                      <SelectItem value="float">float</SelectItem>
-                      <SelectItem value="double">double</SelectItem>
-                      <SelectItem value="bool">bool</SelectItem>
-                      <SelectItem value="void">void</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Return Type (e.g., int, void, struct ListNode*)"
+                  />
               </div>
               <div>
                 <Label>Return Size Param</Label>
@@ -587,26 +639,16 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
                       </div>
                       <div>
                         <Label className="text-xs">Type</Label>
-                        <Select
+                        <Input
                             value={param.type}
-                            onValueChange={(value) => {
+                            onChange={(e) => {
                                 const newParams = [...formData.javaMetadata.parameters];
-                                newParams[index].type = value;
+                                newParams[index].type = e.target.value;
                                 setFormData(prev => ({ ...prev, javaMetadata: { ...prev.javaMetadata, parameters: newParams } }));
                             }}
-                          >
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="int">int</SelectItem>
-                              <SelectItem value="int[]">int[]</SelectItem>
-                              <SelectItem value="String">String</SelectItem>
-                              <SelectItem value="double">double</SelectItem>
-                              <SelectItem value="boolean">boolean</SelectItem>
-                              <SelectItem value="List<Integer>">List&lt;Integer&gt;</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            placeholder="Type (e.g., int, ListNode)" 
+                            className="h-8"
+                        />
                       </div>
                    </div>
                 ))}
@@ -618,26 +660,14 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
             </div>
              <div>
                 <Label>Return Type</Label>
-                 <Select
+                 <Input
                     value={formData.javaMetadata.returnType.type}
-                    onValueChange={(value) => setFormData(prev => ({ 
+                    onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
-                        javaMetadata: { ...prev.javaMetadata, returnType: { type: value } } 
+                        javaMetadata: { ...prev.javaMetadata, returnType: { type: e.target.value } } 
                     }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="int">int</SelectItem>
-                      <SelectItem value="int[]">int[]</SelectItem>
-                      <SelectItem value="String">String</SelectItem>
-                      <SelectItem value="double">double</SelectItem>
-                      <SelectItem value="boolean">boolean</SelectItem>
-                      <SelectItem value="List<Integer>">List&lt;Integer&gt;</SelectItem>
-                      <SelectItem value="void">void</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Return Type (e.g., int, ListNode)"
+                  />
             </div>
           </CardContent>
         </Card>
@@ -681,27 +711,16 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
                       </div>
                       <div>
                         <Label className="text-xs">Type</Label>
-                         <Select
+                        <Input
                             value={param.type}
-                            onValueChange={(value) => {
+                            onChange={(e) => {
                                 const newParams = [...formData.pythonMetadata.parameters];
-                                newParams[index].type = value;
+                                newParams[index].type = e.target.value;
                                 setFormData(prev => ({ ...prev, pythonMetadata: { ...prev.pythonMetadata, parameters: newParams } }));
                             }}
-                          >
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="int">int</SelectItem>
-                              <SelectItem value="float">float</SelectItem>
-                              <SelectItem value="str">str</SelectItem>
-                              <SelectItem value="bool">bool</SelectItem>
-                              <SelectItem value="List[int]">List[int]</SelectItem>
-                              <SelectItem value="List[float]">List[float]</SelectItem>
-                              <SelectItem value="List[str]">List[str]</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            placeholder="Type (e.g., int, Optional[ListNode])"
+                            className="h-8"
+                          />
                       </div>
                    </div>
                 ))}
@@ -713,27 +732,14 @@ export default function EditDSAProblem({ params }: { params: Promise<{ id: strin
             </div>
              <div>
                 <Label>Return Type</Label>
-                <Select
+                <Input
                     value={formData.pythonMetadata.returnType.type}
-                    onValueChange={(value) => setFormData(prev => ({ 
+                    onChange={(e) => setFormData(prev => ({ 
                         ...prev, 
-                        pythonMetadata: { ...prev.pythonMetadata, returnType: { type: value } } 
+                        pythonMetadata: { ...prev.pythonMetadata, returnType: { type: e.target.value } } 
                     }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="int">int</SelectItem>
-                      <SelectItem value="float">float</SelectItem>
-                      <SelectItem value="str">str</SelectItem>
-                      <SelectItem value="bool">bool</SelectItem>
-                      <SelectItem value="List[int]">List[int]</SelectItem>
-                      <SelectItem value="List[float]">List[float]</SelectItem>
-                      <SelectItem value="List[str]">List[str]</SelectItem>
-                      <SelectItem value="None">None</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Return Type (e.g., int, Optional[ListNode])"
+                  />
             </div>
           </CardContent>
         </Card>
