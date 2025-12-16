@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { Navbar } from "@/components/navbar"
 import { DSAProblemView } from "@/components/dsa/dsa-problem-view"
+import { DSAProblemSearch } from "@/components/dsa/dsa-problem-search"
 
 export default function DSAProblemPage({ params }: { params: Promise<{ id: string }> }) {
   const { user, loading } = useAuth()
@@ -38,6 +39,7 @@ export default function DSAProblemPage({ params }: { params: Promise<{ id: strin
       <Navbar />
       <div className="pt-16">
         <DSAProblemView problemId={id} />
+        <DSAProblemSearch currentProblemId={id} />
       </div>
     </main>
   )

@@ -41,18 +41,22 @@ export default function EditCompany() {
     averagePackage: { min: 0, max: 0, currency: 'INR' },
     interviewTips: [''],
     isHiring: true,
-    isActive: true
+    isActive: true,
+    hiringFreshers: false,
+    experienceRequired: { min: 0, max: 30 },
+    workModes: [] as string[],
+    remoteMinExperience: 0
   })
 
   const [hiringPipeline, setHiringPipeline] = useState<any[]>([])
   const [dsaSearch, setDsaSearch] = useState('')
   const [dsaSearchResults, setDsaSearchResults] = useState<any[]>([])
   const [selectedDSA, setSelectedDSA] = useState<any[]>([])
-  const [originalDSA, setOriginalDSA] = useState<any[]>([]) // Track original links with linkIds
+  const [originalDSA, setOriginalDSA] = useState<any[]>([]) 
   const [devSearch, setDevSearch] = useState('')
   const [devSearchResults, setDevSearchResults] = useState<any[]>([])
   const [selectedDev, setSelectedDev] = useState<any[]>([])
-  const [originalDev, setOriginalDev] = useState<any[]>([]) // Track original links with linkIds
+  const [originalDev, setOriginalDev] = useState<any[]>([])
   const [interviewQuestions, setInterviewQuestions] = useState<Array<{
     questionId?: string
     question: string
@@ -62,7 +66,7 @@ export default function EditCompany() {
   }>>([
     { question: '', type: 'Technical', difficulty: 'Medium', round: '' }
   ])
-  const [originalQuestions, setOriginalQuestions] = useState<any[]>([]) // Track original questions with IDs
+  const [originalQuestions, setOriginalQuestions] = useState<any[]>([]) 
   const [newRole, setNewRole] = useState('')
 
   useEffect(() => {
@@ -94,7 +98,13 @@ export default function EditCompany() {
           averagePackage: company.averagePackage || { min: 0, max: 0, currency: 'INR' },
           interviewTips: company.interviewTips?.length ? company.interviewTips : [''],
           isHiring: company.isHiring !== undefined ? company.isHiring : true,
-          isActive: company.isActive !== undefined ? company.isActive : true
+          isActive: company.isActive !== undefined ? company.isActive : true,
+          
+          // New Fields
+          hiringFreshers: company.hiringFreshers || false,
+          experienceRequired: company.experienceRequired || { min: 0, max: 30 },
+          workModes: company.workModes || [],
+          remoteMinExperience: company.remoteMinExperience || 0
         })
 
         setHiringPipeline(company.hiringPipeline || [])
@@ -218,6 +228,15 @@ export default function EditCompany() {
 
   const removeHiringRound = (index: number) => {
     setHiringPipeline(hiringPipeline.filter((_, i) => i !== index))
+  }
+
+  const toggleWorkMode = (mode: string) => {
+    setFormData(prev => {
+        const modes = prev.workModes.includes(mode) 
+            ? prev.workModes.filter(m => m !== mode)
+            : [...prev.workModes, mode]
+        return { ...prev, workModes: modes }
+    })
   }
 
   const searchDSAProblems = async (query: string) => {
@@ -636,6 +655,108 @@ export default function EditCompany() {
               </CardContent>
             </Card>
 
+            {/* Hiring Pipeline Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Hiring Pipeline</CardTitle>
+                <CardDescription>Define the interview rounds and process</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {hiringPipeline.map((round, index) => (
+                  <div key={index} className="border rounded-lg p-4 relative bg-card/50">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeHiringRound(index)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    
+                    <div className="grid grid-cols-12 gap-4 mb-4">
+                      <div className="col-span-1 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                          {index + 1}
+                        </div>
+                      </div>
+                      <div className="col-span-11 grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Round Name</Label>
+                          <Input 
+                            value={round.roundName} 
+                            onChange={(e) => updateHiringRound(index, 'roundName', e.target.value)} 
+                            placeholder="e.g. Online Assessment"
+                          />
+                        </div>
+                        <div>
+                          <Label>Round Type</Label>
+                          <select 
+                            value={round.roundType} 
+                            onChange={(e) => updateHiringRound(index, 'roundType', e.target.value)}
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                          >
+                            {ROUND_TYPES.map(type => (
+                              <option key={type} value={type}>{type.replace('-', ' ').toUpperCase()}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <Label>Duration</Label>
+                        <Input 
+                          value={round.duration || ''} 
+                          onChange={(e) => updateHiringRound(index, 'duration', e.target.value)} 
+                          placeholder="e.g. 60 min"
+                        />
+                      </div>
+                      <div>
+                         <Label>Description</Label>
+                         <Input 
+                           value={round.description || ''} 
+                           onChange={(e) => updateHiringRound(index, 'description', e.target.value)} 
+                           placeholder="Round details..."
+                         />
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/30 p-3 rounded-md">
+                      <Label className="text-xs font-semibold mb-2 block">Passing Criteria</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs">Min Score (%)</Label>
+                          <Input 
+                            type="number" 
+                            className="h-8"
+                            value={round.passingCriteria?.minimumScore || 0} 
+                            onChange={(e) => updateHiringRound(index, 'passingCriteria.minimumScore', parseInt(e.target.value))} 
+                          />
+                        </div>
+                         <div>
+                          <Label className="text-xs">Criteria Description</Label>
+                          <Input 
+                            className="h-8"
+                            value={round.passingCriteria?.description || ''} 
+                            onChange={(e) => updateHiringRound(index, 'passingCriteria.description', e.target.value)} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button type="button" variant="outline" onClick={addHiringRound} className="w-full border-dashed">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Round
+                </Button>
+              </CardContent>
+            </Card>
+
+
+
             <Card>
               <CardHeader>
                 <CardTitle>Hiring Details</CardTitle>
@@ -650,14 +771,53 @@ export default function EditCompany() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="minPackage">Min Package (LPA)</Label>
-                    <Input id="minPackage" type="number" value={formData.averagePackage.min} onChange={(e) => setFormData(prev => ({ ...prev, averagePackage: { ...prev.averagePackage, min: parseInt(e.target.value) }}))} />
+                    <Input id="minPackage" type="number" value={formData.averagePackage.min} onChange={(e) => setFormData(prev => ({ ...prev, averagePackage: { ...prev.averagePackage, min: parseInt(e.target.value) || 0 }}))} />
                   </div>
                   <div>
                     <Label htmlFor="maxPackage">Max Package (LPA)</Label>
-                    <Input id="maxPackage" type="number" value={formData.averagePackage.max} onChange={(e) => setFormData(prev => ({ ...prev, averagePackage: { ...prev.averagePackage, max: parseInt(e.target.value) }}))} />
+                    <Input id="maxPackage" type="number" value={formData.averagePackage.max} onChange={(e) => setFormData(prev => ({ ...prev, averagePackage: { ...prev.averagePackage, max: parseInt(e.target.value) || 0 }}))} />
                   </div>
                 </div>
-                <div className="space-y-3">
+
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                     <div>
+                        <Label>Experience Required (Years)</Label>
+                        <div className="flex gap-2 mt-2">
+                             <Input placeholder="Min" type="number" value={formData.experienceRequired.min} onChange={(e) => setFormData(prev => ({ ...prev, experienceRequired: { ...prev.experienceRequired, min: parseFloat(e.target.value) || 0 }}))} />
+                             <span className="self-center">-</span>
+                             <Input placeholder="Max" type="number" value={formData.experienceRequired.max} onChange={(e) => setFormData(prev => ({ ...prev, experienceRequired: { ...prev.experienceRequired, max: parseFloat(e.target.value) || 0 }}))} />
+                        </div>
+                     </div>
+                     <div>
+                        <Label>Remote work Min Exp (Years)</Label>
+                        <Input className="mt-2" type="number" value={formData.remoteMinExperience} onChange={(e) => setFormData(prev => ({ ...prev, remoteMinExperience: parseFloat(e.target.value) || 0 }))} />
+                     </div>
+                </div>
+
+                <div className="space-y-2 border-t pt-4">
+                     <Label>Work Modes</Label>
+                     <div className="flex gap-4">
+                         {['Remote', 'Hybrid', 'On-site'].map(mode => (
+                             <div key={mode} className="flex items-center space-x-2">
+                                <input 
+                                    type="checkbox" 
+                                    id={`mode-${mode}`} 
+                                    checked={formData.workModes.includes(mode)} 
+                                    onChange={() => toggleWorkMode(mode)} 
+                                    className="h-4 w-4 rounded" 
+                                />
+                                <Label htmlFor={`mode-${mode}`} className="cursor-pointer">{mode}</Label>
+                             </div>
+                         ))}
+                     </div>
+                </div>
+
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center space-x-2">
+                    <input type="checkbox" id="hiringFreshers" checked={formData.hiringFreshers} onChange={(e) => setFormData(prev => ({ ...prev, hiringFreshers: e.target.checked }))} className="h-4 w-4 rounded text-green-600 focus:ring-green-500" />
+                    <Label htmlFor="hiringFreshers" className="cursor-pointer font-semibold text-green-700">Fresher Hiring? (Tick for "Freshers Welcome" Badge)</Label>
+                  </div>
+
                   <div className="flex items-center space-x-2">
                     <input type="checkbox" id="isHiring" checked={formData.isHiring} onChange={(e) => setFormData(prev => ({ ...prev, isHiring: e.target.checked }))} className="h-4 w-4 rounded" />
                     <Label htmlFor="isHiring" className="cursor-pointer">Currently Hiring</Label>
