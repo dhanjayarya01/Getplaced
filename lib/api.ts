@@ -492,6 +492,77 @@ class ApiService {
                 throw this._handleError(error)
             }
         },
+
+        // Mock Interview Management
+        mockInterviews: {
+            getAll: async (params?: { codingType?: boolean; isActive?: boolean; page?: number; limit?: number }) => {
+                try {
+                    const response = await apiClient.get('/api/admin/mock-interviews', { params })
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
+
+            getById: async (id: string) => {
+                try {
+                    const response = await apiClient.get(`/api/admin/mock-interviews/${id}`)
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
+
+            create: async (data: any) => {
+                try {
+                    const response = await apiClient.post('/api/admin/mock-interviews', data)
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
+
+            update: async (id: string, data: any) => {
+                try {
+                    const response = await apiClient.put(`/api/admin/mock-interviews/${id}`, data)
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
+
+            delete: async (id: string) => {
+                try {
+                    const response = await apiClient.delete(`/api/admin/mock-interviews/${id}`)
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
+
+            toggleActive: async (id: string) => {
+                try {
+                    const response = await apiClient.patch(`/api/admin/mock-interviews/${id}/toggle-active`)
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
+        },
+    }
+
+    // ============================================
+    // MOCK INTERVIEWS (PUBLIC)
+    // ============================================
+    mockInterviews = {
+        getAll: async () => {
+            try {
+                const response = await apiClient.get('/api/mock-interviews')
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
     }
 
     // ============================================
