@@ -563,6 +563,47 @@ class ApiService {
                 throw this._handleError(error)
             }
         },
+
+        getById: async (id: string) => {
+            try {
+                const response = await apiClient.get(`/api/mock-interviews/${id}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+    }
+
+    // ============================================
+    // INTERVIEW SESSIONS
+    // ============================================
+    interviewSessions = {
+        start: async (data: { interviewId: string; difficulty?: string; strictness?: number }) => {
+            try {
+                const response = await apiClient.post('/api/interview-sessions/start', data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        updateScore: async (id: string, data: { stage: number; score: number; feedback?: string; transcript?: any }) => {
+            try {
+                const response = await apiClient.patch(`/api/interview-sessions/${id}/score`, data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        getById: async (id: string) => {
+            try {
+                const response = await apiClient.get(`/api/interview-sessions/${id}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
     }
 
     // ============================================
