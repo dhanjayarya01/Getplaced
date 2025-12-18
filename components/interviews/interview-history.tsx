@@ -1,6 +1,7 @@
 "use client"
 
 import { TrendingUp, Star } from "lucide-react"
+import { ReactNode } from "react"
 
 const historyItems = [
   { type: "Technical", score: 8.5, feedback: "Great problem-solving approach", date: "Dec 4", improvement: "+0.5" },
@@ -15,7 +16,11 @@ const historyItems = [
   { type: "1:1 Voice", score: 8.0, feedback: "Clear communication", date: "Nov 28", improvement: "+0.3" },
 ]
 
-export function InterviewHistory() {
+interface InterviewHistoryProps {
+  resumeButton?: ReactNode
+}
+
+export function InterviewHistory({ resumeButton }: InterviewHistoryProps) {
   return (
     <div className="bg-card rounded-xl border border-border p-6">
       <div className="flex items-center justify-between mb-6">
@@ -58,6 +63,14 @@ export function InterviewHistory() {
           Your technical scores have improved 15% this month. Focus more on system design to round out your preparation.
         </p>
       </div>
+
+      {/* Resume Button Below Stats */}
+      {resumeButton && (
+        <div className="mt-6 pt-6 border-t border-border">
+          <div className="text-xs font-medium text-muted-foreground mb-2">RESUME</div>
+          {resumeButton}
+        </div>
+      )}
     </div>
   )
 }

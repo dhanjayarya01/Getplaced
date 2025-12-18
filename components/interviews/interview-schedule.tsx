@@ -15,7 +15,7 @@ export function InterviewSchedule() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
-          Scheduled Interviews
+          Mock Interviews
         </h2>
         <Button size="sm">
           <Plus className="w-4 h-4 mr-2" />

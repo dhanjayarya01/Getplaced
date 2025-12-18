@@ -516,6 +516,48 @@ class ApiService {
             }
         }
     }
+
+    resume = {
+        upload: async (formData: FormData) => {
+            try {
+                const response = await apiClient.post('/api/resume/upload', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                })
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        get: async () => {
+            try {
+                const response = await apiClient.get('/api/resume')
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        update: async (id: string, parsedData: any) => {
+            try {
+                const response = await apiClient.put(`/api/resume/${id}`, { parsedData })
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        delete: async (id: string) => {
+            try {
+                const response = await apiClient.delete(`/api/resume/${id}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+    }
 }
 
 // Export singleton instance

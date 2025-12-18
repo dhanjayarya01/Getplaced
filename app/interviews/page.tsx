@@ -4,6 +4,7 @@ import { InterviewHero } from "@/components/interviews/interview-hero"
 import { InterviewTypes } from "@/components/interviews/interview-types"
 import { InterviewSchedule } from "@/components/interviews/interview-schedule"
 import { InterviewHistory } from "@/components/interviews/interview-history"
+import { ResumeModal } from "@/components/resume/resume-modal"
 
 export default function InterviewsPage() {
   return (
@@ -15,7 +16,7 @@ export default function InterviewsPage() {
           <InterviewTypes />
           <div className="grid lg:grid-cols-2 gap-8 mt-12">
             <InterviewSchedule />
-            <InterviewHistory />
+            <InterviewHistory resumeButton={<ResumeModal />} />
           </div>
         </div>
       </div>
