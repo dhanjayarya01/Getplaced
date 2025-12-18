@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { apiService } from '@/lib/api'
 
 interface User {
@@ -47,7 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
       }
     } catch (error: any) {
-      console.error('Auth check failed:', error)
+      if (error?.status !== 401) {
+          console.error('Auth check failed:', error)
+      }
       setIsAuthenticated(false)
       setUser(null)
     } finally {
@@ -55,12 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const login = () => {
+  const login = useCallback(() => {
     
     apiService.auth.googleLogin()
-  }
+  }, [])
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiService.auth.logout()
       setIsAuthenticated(false)
@@ -68,9 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error)
     }
-  }
+  }, [])
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     setLoading(true)
     try {
       const response = await apiService.auth.getCurrentUser()
@@ -88,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   return (
     <AuthContext.Provider

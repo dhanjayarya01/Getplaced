@@ -41,7 +41,7 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
 
   const fetchFilterOptions = async () => {
     try {
-      const response = await apiService.admin.getDSAFilters()
+      const response = await apiService.dsa.getFilters()
       if (response.success) {
         setFilterOptions(response.data)
       }

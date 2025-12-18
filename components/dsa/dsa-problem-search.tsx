@@ -33,7 +33,8 @@ export function DSAProblemSearch({ currentProblemId }: DSAProblemSearchProps) {
   const fetchProblems = async () => {
     setLoading(true)
     try {
-      const response = await apiService.dsa.getAll()
+      // Fetch all active problems for client-side search (assuming reasonable count < 1000)
+      const response = await apiService.dsa.getAll({ limit: 1000, isActive: true })
       if (response.success) {
         setProblems(response.data.problems || response.data)
       }

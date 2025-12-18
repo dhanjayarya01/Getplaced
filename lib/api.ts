@@ -50,9 +50,22 @@ class ApiService {
     // DSA ENDPOINTS
     // ============================================
     dsa = {
-        getAll: async (params?: any) => {
+        getAll: async (params?: any, config?: any) => {
             try {
-                const response = await apiClient.get('/api/dsa', { params })
+                const response = await apiClient.get('/api/dsa', { params, ...config })
+                return response.data
+            } catch (error) {
+                if (axios.isCancel(error)) {
+                    console.log('Request canceled', error.message);
+                    throw error; // Propagate cancel
+                }
+                throw this._handleError(error)
+            }
+        },
+
+        getFilters: async () => {
+            try {
+                const response = await apiClient.get('/api/dsa/filters')
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
