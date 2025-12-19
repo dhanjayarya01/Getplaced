@@ -578,7 +578,7 @@ class ApiService {
     // INTERVIEW SESSIONS
     // ============================================
     interviewSessions = {
-        start: async (data: { interviewId: string; difficulty?: string; strictness?: number }) => {
+        start: async (data: { interviewId: string; difficulty?: string; strictness?: number; language?: string; voiceId?: string }) => {
             try {
                 const response = await apiClient.post('/api/interview-sessions/start', data)
                 return response.data

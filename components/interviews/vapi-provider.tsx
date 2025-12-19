@@ -7,7 +7,7 @@ interface VapiContextType {
   isCallActive: boolean
   isMuted: boolean
   transcript: { role: string; content: string }[]
-  startCall: (systemPrompt: string) => Promise<void>
+  startCall: (systemPrompt: string, voiceId?: string, language?: string) => Promise<void>
   endCall: () => Promise<void>
   toggleMute: () => void
 }
@@ -19,9 +19,9 @@ export function VapiProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false)
   const [transcript, setTranscript] = useState<{ role: string; content: string }[]>([])
 
-  const startCall = useCallback(async (systemPrompt: string) => {
+  const startCall = useCallback(async (systemPrompt: string, voiceId?: string, language?: string) => {
     try {
-      await vapiService.startCall(systemPrompt, (message) => {
+      await vapiService.startCall(systemPrompt, voiceId, language, (message: any) => {
         if (message.type === 'transcript') {
           setTranscript(prev => [
             ...prev,
@@ -33,8 +33,9 @@ export function VapiProvider({ children }: { children: ReactNode }) {
         }
       })
       setIsCallActive(true)
+      console.log('VAPI call started successfully')
     } catch (error) {
-      console.error('Failed to start call:', error)
+      console.error('Failed to start VAPI call:', error)
       throw error
     }
   }, [])

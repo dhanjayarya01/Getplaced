@@ -6,14 +6,36 @@ class VapiService {
     private isCallActive = false
 
     constructor() {
-        this.vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || '')
+        const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || ''
+        console.log('🔑 VAPI Key loaded:', apiKey ? `${apiKey.substring(0, 8)}...` : 'NOT SET')
+        this.vapi = new Vapi(apiKey)
     }
 
-    // Start call with system prompt
-    async startCall(systemPrompt: string, onMessage?: (message: any) => void) {
+    // Start call with system prompt, optional voice, and optional language
+    async startCall(systemPrompt: string, voiceId?: string, language?: string, onMessage?: (message: any) => void) {
         if (!this.vapi) throw new Error('VAPI not initialized')
 
+        // Map language names to Deepgram language codes
+        const languageMap: { [key: string]: string } = {
+            'English': 'en',
+            'Hindi': 'hi',
+            'Spanish': 'es',
+            'French': 'fr',
+            'German': 'de'
+        }
+
+        const transcriptionLanguage = languageMap[language || 'English'] || 'en'
+
+        console.log('VAPI Configuration:', {
+            language,
+            transcriptionLanguage,
+            voiceId
+        })
+
         try {
+            // For Hindi, we need ElevenLabs multilingual model
+            const elevenLabsModel = language && language !== 'English' ? 'eleven_multilingual_v2' : undefined
+
             await this.vapi.start({
                 model: {
                     provider: 'openai',
@@ -27,7 +49,13 @@ class VapiService {
                 },
                 voice: {
                     provider: '11labs',
-                    voiceId: 'paula' // Professional female voice
+                    voiceId: voiceId || '21m00Tcm4TlvDq8ikWAM',
+                    ...(elevenLabsModel && { model: elevenLabsModel }) // Add model only for non-English
+                },
+                transcriber: {
+                    provider: 'deepgram',
+                    model: 'nova-2',
+                    language: transcriptionLanguage as any
                 }
             })
 
@@ -44,9 +72,15 @@ class VapiService {
             })
 
             return { success: true }
-        } catch (error) {
+        } catch (error: any) {
             console.error('VAPI start call error:', error)
-            throw error
+            console.error('Error details:', {
+                message: error?.message,
+                stack: error?.stack,
+                response: error?.response,
+                data: error?.response?.data
+            })
+            throw new Error(`VAPI Error: ${error?.message || 'Unknown error'}`)
         }
     }
 

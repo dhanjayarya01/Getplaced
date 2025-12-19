@@ -29,9 +29,11 @@ Be ${stage?.strictness >= 7 ? "strict" : "supportive"}.`
     
     // Auto-start call only if not already active
     const initCall = async () => {
-      if (prompt && !isCallActive) {
+      if (systemPrompt && !isCallActive) {
         try {
-          await startCall(prompt)
+          const voiceId = (session as any).voiceId || '21m00Tcm4TlvDq8ikWAM' // Rachel - default
+          const language = (session as any).language || 'English'
+          await startCall(systemPrompt, voiceId, language)
           console.log("VAPI call started successfully")
         } catch (error) {
           console.error("Failed to start VAPI call:", error)

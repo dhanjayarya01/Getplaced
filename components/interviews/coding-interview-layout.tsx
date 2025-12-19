@@ -28,9 +28,11 @@ Guide the candidate through the coding problem.`
     
     console.log('Using system prompt:', prompt.substring(0, 200) + '...')
     
-    // Auto-start VAPI call
+    // Auto-start VAPI call with voice and language preferences
     if (prompt && !isCallActive) {
-      startCall(prompt).catch(err => console.error("Failed to start VAPI:", err))
+      const voiceId = (session as any).voiceId || '21m00Tcm4TlvDq8ikWAM' // Rachel - default
+      const language = (session as any).language || 'English'
+      startCall(prompt, voiceId, language).catch(err => console.error("Failed to start VAPI:", err))
     }
   }, [systemPrompt])
 

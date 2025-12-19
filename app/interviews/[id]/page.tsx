@@ -13,6 +13,8 @@ export default function InterviewDetailPage() {
   const [loading, setLoading] = useState(true)
   const [difficulty, setDifficulty] = useState("")
   const [strictness, setStrictness] = useState(5)
+  const [language, setLanguage] = useState("English")
+  const [voiceId, setVoiceId] = useState("21m00Tcm4TlvDq8ikWAM") // Rachel - default
 
   useEffect(() => {
     fetchInterview()
@@ -33,11 +35,23 @@ export default function InterviewDetailPage() {
 
   const handleStartInterview = async () => {
     try {
+      console.log('🔍 STARTING INTERVIEW WITH:', {
+        interviewId: params.id,
+        difficulty,
+        strictness,
+        language,
+        voiceId
+      })
+
       const response = await apiService.interviewSessions.start({
         interviewId: params.id as string,
         difficulty,
         strictness,
+        language,
+        voiceId,
       })
+
+      console.log('✅ SESSION STARTED:', response.data)
 
       if (response.success) {
         router.push(`/interviews/${params.id}/session/${response.data.sessionId}`)
@@ -88,13 +102,13 @@ export default function InterviewDetailPage() {
         {/* Controls */}
         <div className="bg-card rounded-xl border p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Interview Settings</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium mb-2">Difficulty</label>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded-lg bg-background"
               >
                 <option>Easy</option>
                 <option>Medium</option>
@@ -113,6 +127,43 @@ export default function InterviewDetailPage() {
                 onChange={(e) => setStrictness(parseInt(e.target.value))}
                 className="w-full"
               />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">🌍 Language</label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="English">English</option>
+                <option value="Hindi">हिन्दी (Hindi)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">🎙️ Voice Model</label>
+              <select
+                value={voiceId}
+                onChange={(e) => setVoiceId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <optgroup label="Female Voices">
+                  <option value="21m00Tcm4TlvDq8ikWAM">Rachel - Warm & Clear (Default)</option>
+                  <option value="EXAVITQu4vr4xnSDxMaL">Bella - Sweet</option>
+                  <option value="AZnzlk1XvdvUeBnXmlld">Domi - Strong</option>
+                  <option value="XB0fDUnXU5powFXDhCwa">Charlotte - Seductive</option>
+                  <option value="Xb7hH8MSUJpSbSDYk0k2">Alice - Confident News</option>
+                </optgroup>
+                <optgroup label="Male Voices">
+                  <option value="pNInz6obpgDQGcFmaJgB">Adam - Deep Professional</option>
+                  <option value="ErXwobaYiN019PkySvjV">Antoni - Friendly Young</option>
+                  <option value="VR6AewLTigWG4xSOukaG">Arnold - Crisp Clear</option>
+                  <option value="pqHfZKP75CvOlQylNhV4">Bill - Strong Documentary</option>
+                  <option value="nPczCjzI2devNBz1zQrb">Brian - Deep Rich</option>
+                </optgroup>
+              </select>
             </div>
           </div>
         </div>
