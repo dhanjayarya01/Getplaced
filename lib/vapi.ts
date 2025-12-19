@@ -45,8 +45,35 @@ class VapiService {
                             role: 'system',
                             content: systemPrompt
                         }
+                    ],
+                    // Add function calling
+                    functions: [
+                        {
+                            name: 'submitFeedback',
+                            description: 'Submit the final interview feedback and score. Call this AFTER verbally giving feedback to the candidate.',
+                            parameters: {
+                                type: 'object',
+                                properties: {
+                                    score: {
+                                        type: 'number',
+                                        description: 'Score from 0-10'
+                                    },
+                                    areasGoodIn: {
+                                        type: 'array',
+                                        items: { type: 'string' },
+                                        description: 'List of 2-3 things the candidate did well'
+                                    },
+                                    areasToWorkOn: {
+                                        type: 'array',
+                                        items: { type: 'string' },
+                                        description: 'List of 2 areas for improvement'
+                                    }
+                                },
+                                required: ['score', 'areasGoodIn', 'areasToWorkOn']
+                            }
+                        }
                     ]
-                },
+                } as any, // Bypass TypeScript for function calling
                 voice: {
                     provider: '11labs',
                     voiceId: voiceId || '21m00Tcm4TlvDq8ikWAM',
@@ -54,17 +81,21 @@ class VapiService {
                 },
                 transcriber: {
                     provider: 'deepgram',
-                    model: 'nova-2',
+                    model: 'nova-3', // Latest model for better accuracy
                     language: transcriptionLanguage as any
                 }
             })
 
             this.isCallActive = true
 
-            // Listen to messages
-            if (onMessage) {
-                this.vapi.on('message', onMessage)
-            }
+            // Listen to ALL messages with debugging
+            this.vapi.on('message', (message: any) => {
+                console.log('📨 VAPI Message:', message.type || 'unknown', message)
+
+                if (onMessage) {
+                    onMessage(message)
+                }
+            })
 
             // Listen to call end
             this.vapi.on('call-end', () => {

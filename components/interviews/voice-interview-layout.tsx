@@ -33,7 +33,52 @@ Be ${stage?.strictness >= 7 ? "strict" : "supportive"}.`
         try {
           const voiceId = (session as any).voiceId || '21m00Tcm4TlvDq8ikWAM' // Rachel - default
           const language = (session as any).language || 'English'
-          await startCall(systemPrompt, voiceId, language)
+          
+          // Add function call handler
+          const handleFunctionCall = async (name: string, args: any) => {
+            if (name === 'submitFeedback') {
+              console.log('✅ AI submitted feedback:', args)
+              
+              // Build feedback text
+              let feedbackText = `Interview completed with score ${args.score}/10\n\n`
+              
+              if (args.areasGoodIn?.length > 0) {
+                feedbackText += "**What You Did Well:**\n"
+                args.areasGoodIn.forEach((area: string, i: number) => {
+                  feedbackText += `${i + 1}. ${area}\n`
+                })
+                feedbackText += "\n"
+              }
+              
+              if (args.areasToWorkOn?.length > 0) {
+                feedbackText += "**Top Areas for Improvement:**\n"
+                args.areasToWorkOn.forEach((area: string, i: number) => {
+                  feedbackText += `${i + 1}. ${area}\n`
+                })
+              }
+              
+              // Save to backend
+              try {
+                await apiService.interviewSessions.updateScore(session._id, {
+                  stage: session.currentStage,
+                  score: args.score,
+                  feedback: feedbackText
+                })
+                
+                // End call
+                await endCall()
+                
+                // Auto-redirect
+                setTimeout(() => {
+                  router.push("/interviews")
+                }, 1000) // 1 second delay for smooth transition
+              } catch (error) {
+                console.error("Failed to save feedback:", error)
+              }
+            }
+          }
+          
+          await startCall(systemPrompt, voiceId, language, handleFunctionCall)
           console.log("VAPI call started successfully")
         } catch (error) {
           console.error("Failed to start VAPI call:", error)
@@ -53,38 +98,13 @@ Be ${stage?.strictness >= 7 ? "strict" : "supportive"}.`
   }
 
   const handleEndInterview = async () => {
-    // Extract score from transcript before ending
-    let extractedScore = 7 // Default fallback
-    
-    // Look for score patterns in AI messages
-    const aiMessages = transcript.filter(t => t.role === "assistant")
-    for (const msg of aiMessages.reverse()) {
-      const scoreMatch = msg.content.match(/score[:\s]+(\d+(?:\.\d+)?)\s*(?:out of|\/|\s*tenths?\s*)\s*(?:10)?/i) ||
-                        msg.content.match(/(\d+(?:\.\d+)?)\s*(?:out of|\/)\s*10/i) ||
-                        msg.content.match(/your score[:\s,]+(\d+(?:\.\d+)?)/i)
-      
-      if (scoreMatch) {
-        extractedScore = parseFloat(scoreMatch[1])
-        console.log("Extracted score from transcript:", extractedScore)
-        break
-      }
-    }
-    
+    // AI function calling already handles saving feedback
+    // This button is just for manually ending the call if needed
+    console.log("Manual end button clicked - ending call only")
     await endCall()
     
-    try {
-      console.log("Saving interview with score:", extractedScore)
-      await apiService.interviewSessions.updateScore(session._id, {
-        stage: session.currentStage,
-        score: extractedScore,
-        feedback: `Interview completed with score ${extractedScore}/10`
-      })
-      
-      router.push("/interviews")
-    } catch (error) {
-      console.error("Failed to update score:", error)
-      alert("Failed to save interview progress. Please try again.")
-    }
+    // Redirect to interviews page
+    router.push("/interviews")
   }
 
   return (

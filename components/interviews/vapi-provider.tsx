@@ -7,7 +7,7 @@ interface VapiContextType {
   isCallActive: boolean
   isMuted: boolean
   transcript: { role: string; content: string }[]
-  startCall: (systemPrompt: string, voiceId?: string, language?: string) => Promise<void>
+  startCall: (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => void) => Promise<void>
   endCall: () => Promise<void>
   toggleMute: () => void
 }
@@ -19,9 +19,12 @@ export function VapiProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false)
   const [transcript, setTranscript] = useState<{ role: string; content: string }[]>([])
 
-  const startCall = useCallback(async (systemPrompt: string, voiceId?: string, language?: string) => {
+  const startCall = useCallback(async (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => void) => {
     try {
       await vapiService.startCall(systemPrompt, voiceId, language, (message: any) => {
+        // Log all messages for debugging
+        console.log('📥 VAPI Provider received:', message)
+        
         if (message.type === 'transcript') {
           setTranscript(prev => [
             ...prev,
@@ -30,6 +33,24 @@ export function VapiProvider({ children }: { children: ReactNode }) {
               content: message.transcript
             }
           ])
+        }
+        
+        // Handle VAPI tool-calls (function calling)
+        if (message.type === 'tool-calls' && onFunctionCall && message.toolCalls?.length > 0) {
+          const toolCall = message.toolCalls[0]
+          console.log('🔧 Function call detected!', toolCall)
+          
+          // Extract function name and parameters
+          const functionName = toolCall.function?.name || toolCall.name
+          const functionArgs = toolCall.function?.arguments || toolCall.arguments || toolCall.parameters
+          
+          // Parse arguments if they're a string
+          const parsedArgs = typeof functionArgs === 'string' 
+            ? JSON.parse(functionArgs) 
+            : functionArgs
+          
+          console.log('✅ Calling function:', functionName, 'with args:', parsedArgs)
+          onFunctionCall(functionName, parsedArgs)
         }
       })
       setIsCallActive(true)
