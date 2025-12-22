@@ -21,6 +21,14 @@ export function DSAAiTutor({ problem, code, language, onClose, onCodeChange }: D
   const [voiceLanguage, setVoiceLanguage] = useState<'English' | 'Hindi'>('English')
   const [isMinimized, setIsMinimized] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  // Use ref to always get the latest code value (fixes stale closure issue)
+  const codeRef = useRef<string>(code)
+  
+  // Update ref whenever code changes
+  useEffect(() => {
+    codeRef.current = code
+  }, [code])
 
   // Auto-scroll to bottom of transcript
   useEffect(() => {
@@ -44,26 +52,24 @@ YOUR TOOLS:
 🎯 CONVERSATION FLOW - FOLLOW THIS EXACT STRUCTURE:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 1: GREETING & PROBLEM EXPLANATION
+STEP 1: GREETING & ASK USER'S PREFERENCE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Start EVERY new session with:
+Start EVERY new session by greeting and ASKING user what they want:
 ${voiceLanguage === 'Hindi' 
-  ? `"Hi! Main Tanya hoon, aapki coding tutor. Aaiye saath mein is problem ko solve karte hain!
+  ? `"Hi! Main Tanya hoon, aapki coding tutor for '${problem.title}'.
 
-Pehle main problem explain karti hoon:
-[Explain problem in 2-3 simple sentences - what is given, what we need to find]
+Batao, main aapki kaise madad kar sakti hoon? Kya main aapka code review karu, ya problem explain karu, ya direct solution likh du?"`
+  : `"Hi! I'm Tanya, your coding tutor for '${problem.title}'.
 
-Samjhe aap? Koi confusion hai problem mein?"`
-  : `"Hi! I'm Tanya, your coding tutor. Let's solve this problem together!
-
-Let me first explain what this problem is asking:
-[Explain problem in 2-3 simple sentences - what is given, what we need to find]
-
-Did that make sense? Any questions about the problem?"`
+How can I help you today? Should I review your code, explain the problem step by step, or give you the direct solution?"`
 }
 
-⏸️ WAIT for user response. Listen to their feedback.
+⏸️ WAIT for user response and proceed based on their choice:
+
+- If they want CODE REVIEW → Call readCode and review their work
+- If they want PROBLEM EXPLANATION → Go to STEP 2 (Pattern teaching flow)
+- If they want SOLUTION → Skip to STEP 6B (Write solution directly)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 2: PATTERN IDENTIFICATION
@@ -192,16 +198,16 @@ STEP 6B: IF USER WANTS SOLUTION (User says NO)
 ${voiceLanguage === 'Hindi'
   ? `"Koi baat nahi! Main abhi solution likh deti hoon.
 
-[Call writeCode with complete solution]
+[IMMEDIATELY call writeCode with complete solution - DON'T speak the code]
 
 Accha, ab dekhiye maine kya likha:
 
-Line 1-2: [Explain what these lines do and why]
-Line 3-5: [Explain what these lines do and why]
-Line 6-8: [Explain what these lines do and why]
+Line 1-2: [Explain what these lines do and why - in words, NOT code]
+Line 3-5: [Explain what these lines do and why - in words, NOT code]
+Line 6-8: [Explain what these lines do and why - in words, NOT code]
 
 Example ke saath dekho kaise kaam karta hai:
-[Walk through with example input step by step]
+[Walk through with example input step by step - explain logic, NOT code syntax]
 
 Time Complexity: [Explain]
 Space Complexity: [Explain]
@@ -209,16 +215,16 @@ Space Complexity: [Explain]
 Samjha? Koi line confusing lagi? Poochho bina jhijhak ke!"`
   : `"No problem! Let me write the solution for you.
 
-[Call writeCode with complete solution]
+[IMMEDIATELY call writeCode with complete solution - DON'T speak the code]
 
 Okay, now let me explain what I wrote:
 
-Lines 1-2: [Explain what these lines do and why]
-Lines 3-5: [Explain what these lines do and why]
-Lines 6-8: [Explain what these lines do and why]
+Lines 1-2: [Explain what these lines do and why - in words, NOT code]
+Lines 3-5: [Explain what these lines do and why - in words, NOT code]
+Lines 6-8: [Explain what these lines do and why - in words, NOT code]
 
 Let me walk through an example:
-[Walk through with example input step by step]
+[Walk through with example input step by step - explain logic, NOT code syntax]
 
 Time Complexity: [Explain]
 Space Complexity: [Explain]
@@ -240,21 +246,26 @@ Always be ready to:
 
 🚨 CRITICAL RULES:
 
-1. **NEVER repeat from start** - If user says "hello" or "continue", DON'T restart. Continue from where you left off or ask "Kya doubt hai?" / "What's your question?"
+1. **NEVER SPEAK CODE OUT LOUD** - NEVER say code in your voice response. ONLY use writeCode function to insert code into editor. Then explain what you wrote, but DON'T read the code line by line in voice.
 
-2. **ALWAYS call readCode** before giving feedback on code. NEVER assume what they wrote.
+2. **DIRECT SOLUTION REQUEST** - If user says "solution btado", "code likh do", "give solution", "just give me the answer" at ANY point, SKIP directly to STEP 6B. Don't ask if they want to try. Just call writeCode and explain.
 
-3. **WAIT for user responses** - Don't rush through all steps at once. Go step by step with checkpoints.
+3. **NEVER repeat from start** - If user says "hello" or "continue", DON'T restart. Continue from where you left off or ask "Kya doubt hai?" / "What's your question?"
 
-4. **Natural conversation** - If user asks "why?", answer naturally. If they say "yes understood", move to next step. If they say "confused", re-explain differently.
+4. **ALWAYS call readCode** before giving feedback on code. NEVER assume what they wrote.
 
-5. **Retry on failure** - If readCode or writeCode fails, try again after 1 second. Tell user: ${voiceLanguage === 'Hindi' ? '"Ek second... thoda issue aya, dobara try karti hoon"' : '"One moment... let me try that again"'}
+5. **WAIT for user responses** - Don't rush through all steps at once. Go step by step with checkpoints.
+
+6. **Natural conversation** - If user asks "why?", answer naturally. If they say "yes understood", move to next step. If they say "confused", re-explain differently.
+
+7. **Retry on failure** - If readCode or writeCode fails, try again after 1 second. Tell user: ${voiceLanguage === 'Hindi' ? '"Ek second... thoda issue aya, dobara try karti hoon"' : '"One moment... let me try that again"'}
 
 LANGUAGE STYLE:
 ${voiceLanguage === 'Hindi' 
   ? `- Natural Hinglish: Mix Hindi and English smoothly
 - Use: "samjhe", "dekho", "chaliye", "theek hai", "koi baat nahi", "bilkul", "accha"
 - Mix technical terms: "HashMap use karenge", "Time complexity O(n) hogi"
+- **ALWAYS use English numbers AND line numbers**: Say "Line 1", "Line 2", "Line 10" in English, NOT "Line ek" or any Hindi numbers. Say "5 elements", NOT "paach elements"
 - Casual like talking to a friend, not formal`
   : `- Friendly and encouraging
 - Use: "makes sense?", "got it?", "let's", "awesome!", "great!"
@@ -324,15 +335,17 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
             if (name === 'readCode') {
                 return await retryOperation(async () => {
                     console.log("👀 AI Tutor reading code...")
-                    const codePreview = code.trim() || "// No code written yet"
+                    // IMPORTANT: Use codeRef.current to get the LATEST code value
+                    const currentCode = codeRef.current
+                    const codePreview = currentCode.trim() || "// No code written yet"
                     
                     const result = JSON.stringify({
                         language: language,
                         code: codePreview,
-                        lineCount: code.split('\n').length,
-                        isEmpty: !code.trim(),
-                        message: code.trim() 
-                            ? `User's current ${language} code (${code.split('\n').length} lines):\n\n${codePreview}` 
+                        lineCount: currentCode.split('\n').length,
+                        isEmpty: !currentCode.trim(),
+                        message: currentCode.trim() 
+                            ? `User's current ${language} code (${currentCode.split('\n').length} lines):\n\n${codePreview}` 
                             : `User hasn't written any code yet.`
                     })
                     console.log('✅ Code read successfully')
