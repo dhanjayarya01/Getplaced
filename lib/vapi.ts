@@ -89,8 +89,28 @@ class VapiService {
                     provider: 'deepgram',
                     model: 'nova-3', // Latest model for better accuracy
                     language: transcriptionLanguage as any
-                }
-            })
+                },
+                // Call duration and silence settings
+                maxDurationSeconds: 1800, // 30 minutes hard limit
+
+                // ENHANCED: Silence handling for coding interviews
+                // Allow long periods of silence while user codes
+                silenceTimeoutSeconds: 300, // 5 minutes of silence before VAPI considers it "too quiet"
+
+                // Keep connection alive with subtle background sound
+                backgroundSound: 'office', // Subtle ambient sound to keep connection stable
+
+                // Give AI time to think before responding
+                responseDelaySeconds: 0.4,
+
+                // Graceful disconnection message
+                endCallMessage: 'Interview session ended. Thank you!',
+
+                // NOTE: Primary silence management via AI prompts
+                // AI actively checks in every 4 minutes: "Are you done?"
+                // If no response after 2 attempts (total ~1 min), AI ends call gracefully
+                // The 5-minute silenceTimeout above is a backup safety net
+            } as any)
 
             this.isCallActive = true
 
