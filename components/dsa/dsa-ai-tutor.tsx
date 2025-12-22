@@ -25,6 +25,12 @@ export function DSAAiTutor({ problem, code, language, onClose, onCodeChange }: D
   // Use ref to always get the latest code value (fixes stale closure issue)
   const codeRef = useRef<string>(code)
   
+  // Track last written code to prevent duplicate writes from VAPI
+  const lastWrittenCodeRef = useRef<{code: string, timestamp: number} | null>(null)
+  
+  // Track the latest writeCode call ID to cancel outdated calls
+  const latestWriteCallIdRef = useRef<number>(0)
+  
   // Update ref whenever code changes
   useEffect(() => {
     codeRef.current = code
@@ -255,15 +261,17 @@ Always be ready to:
 
 1. **NEVER SPEAK CODE OUT LOUD** - NEVER say code in your voice response. ONLY use writeCode function to insert code into editor. Then explain what you wrote, but DON'T read the code line by line in voice.
 
-2. **DIRECT SOLUTION REQUEST** - If user says "solution btado", "code likh do", "give solution", "just give me the answer" at ANY point, SKIP directly to STEP 6B. Don't ask if they want to try. Just call writeCode and explain.
+2. **ONLY CALL writeCode WHEN YOU HAVE CODE READY** - NEVER call writeCode unless you have the complete solution code prepared. If you don't have the code yet, DON'T call the function. Only call it when you're ready with the full solution.
 
-3. **NEVER repeat from start** - If user says "hello" or "continue", DON'T restart. Continue from where you left off or ask "Kya doubt hai?" / "What's your question?"
+3. **DIRECT SOLUTION REQUEST** - If user says "solution btado", "code likh do", "give solution", "just give me the answer" at ANY point, SKIP directly to STEP 6B. Don't ask if they want to try. Just call writeCode and explain.
 
-4. **ALWAYS call readCode** before giving feedback on code. NEVER assume what they wrote.
+4. **NEVER repeat from start** - If user says "hello" or "continue", DON'T restart. Continue from where you left off or ask "Kya doubt hai?" / "What's your question?"
 
-5. **WAIT for user responses** - Don't rush through all steps at once. Go step by step with checkpoints.
+5. **ALWAYS call readCode** before giving feedback on code. NEVER assume what they wrote.
 
-6. **Natural conversation** - If user asks "why?", answer naturally. If they say "yes understood", move to next step. If they say "confused", re-explain differently.
+6. **WAIT for user responses** - Don't rush through all steps at once. Go step by step with checkpoints.
+
+7. **Natural conversation** - If user asks "why?", answer naturally. If they say "yes understood", move to next step. If they say "confused", re-explain differently.
 
 7. **Retry on failure** - If readCode or writeCode fails, try again after 1 second. Tell user: ${voiceLanguage === 'Hindi' ? '"Ek second... thoda issue aya, dobara try karti hoon"' : '"One moment... let me try that again"'}
 
@@ -334,7 +342,7 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
         },
         {
             name: "writeCode",
-            description: `Use this to write code directly into the user's editor. When providing a solution, use this function to insert complete ${language} code automatically.`,
+            description: `⚠️ CRITICAL: Use this to write code directly into the user's editor. DO NOT CALL this function unless you have the complete ${language} solution code ready to send in the 'code' parameter. Only call when you're providing the actual solution.`,
             parameters: {
                 type: "object",
                 properties: {
@@ -401,23 +409,69 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
             }
             
             if (name === 'writeCode') {
+                // Generate unique call ID and mark as latest
+                const thisCallId = ++latestWriteCallIdRef.current
+                console.log(`📞 writeCode call #${thisCallId} initiated`)
+                
                 return await retryOperation(async () => {
-                    console.log("✍️ AI Tutor writing code to editor...")
+                    // Check if this is still the latest call
+                    if (thisCallId !== latestWriteCallIdRef.current) {
+                        console.log(`❌ Call #${thisCallId} cancelled (superseded by call #${latestWriteCallIdRef.current})`)
+                        return JSON.stringify({
+                            success: false,
+                            message: 'Call cancelled - newer request received'
+                        })
+                    }
+                    
+                    console.log(`✍️ Processing call #${thisCallId}...`)
+                    console.log('🔍 Full args object:', args)
+                    console.log('🔍 args.code:', args.code)
+                    console.log('🔍 args.codeContent:', args.codeContent)
+                    console.log('🔍 typeof args:', typeof args)
+                    console.log('🔍 Object.keys(args):', Object.keys(args))
+                    console.log('🔍 JSON.stringify(args):', JSON.stringify(args))
+                    
                     const newCode = args.code || args.codeContent || ""
                     
                     if (!newCode) {
-                        throw new Error('No code provided to write')
+                        console.error('❌ No code parameter received from VAPI')
+                        // Don't throw - return error message directly to stop retries
+                        // This is a VAPI parameter issue, not a transient error
+                        return JSON.stringify({
+                            success: false,
+                            message: 'VAPI did not send code parameter (known SDK issue). Please try asking again.'
+                        })
                     }
                     
+                    // Deduplication: Check if this is a duplicate write within 2 seconds
+                    const now = Date.now()
+                    if (lastWrittenCodeRef.current) {
+                        const {code: lastCode, timestamp: lastTime} = lastWrittenCodeRef.current
+                        const timeDiff = now - lastTime
+                        
+                        if (lastCode === newCode && timeDiff < 2000) {
+                            console.log(`⚠️ Duplicate writeCode call detected (${timeDiff}ms ago), skipping...`)
+                            return JSON.stringify({
+                                success: true,
+                                message: 'Code already written (duplicate call ignored)'
+                            })
+                        }
+                    }
+                    
+                    console.log(`✅ Writing ${newCode.split('\n').length} lines to editor`)
                     // Update the code in the editor
                     onCodeChange(newCode)
+                    
+                    // Track this write to prevent duplicates
+                    lastWrittenCodeRef.current = {code: newCode, timestamp: now}
+                    
                     console.log('✅ Code written to editor successfully')
                     
                     return JSON.stringify({
                         success: true,
                         message: `Successfully wrote ${newCode.split('\n').length} lines of ${language} code to your editor. ${voiceLanguage === 'Hindi' ? 'Code editor mein aa gaya hai!' : 'Code is now in your editor!'}`
                     })
-                }, 'writeCode', 3)
+                }, 'writeCode', 1) // Only 1 attempt - don't retry parameter issues
             }
 
             // Unknown function
