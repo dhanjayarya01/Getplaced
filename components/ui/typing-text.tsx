@@ -1,44 +1,32 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { cn } from "@/lib/utils"
 
-export function TypingText({ text }: { text: string }) {
-  const [displayText, setDisplayText] = useState("")
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [loopNum, setLoopNum] = useState(0)
+interface TypingTextProps {
+  text: string
+  className?: string
+  speed?: number
+}
+
+export function TypingText({ text, className, speed = 100 }: TypingTextProps) {
+  const [displayedText, setDisplayedText] = useState("")
+  const [currentIndex, setCurrentIndex] = useState(0)
 
   useEffect(() => {
-    const typingSpeed = isDeleting ? 75 : 150
-    const pauseTime = 2000
+    if (currentIndex < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText((prev) => prev + text[currentIndex])
+        setCurrentIndex((prev) => prev + 1)
+      }, speed)
 
-    const handleType = () => {
-      const fullText = text
-      
-      if (!isDeleting && displayText === fullText) {
-        setTimeout(() => setIsDeleting(true), pauseTime)
-        return
-      }
-
-      if (isDeleting && displayText === "") {
-        setIsDeleting(false)
-        setLoopNum(loopNum + 1)
-        return
-      }
-
-      setDisplayText(
-        isDeleting 
-          ? fullText.substring(0, displayText.length - 1)
-          : fullText.substring(0, displayText.length + 1)
-      )
+      return () => clearTimeout(timeout)
     }
-
-    const timer = setTimeout(handleType, typingSpeed)
-    return () => clearTimeout(timer)
-  }, [displayText, isDeleting, text, loopNum])
+  }, [currentIndex, text, speed])
 
   return (
-    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-      {displayText}
+    <span className={cn("inline-block bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent", className)}>
+      {displayedText}
       <span className="animate-pulse">|</span>
     </span>
   )
