@@ -12,7 +12,7 @@ class VapiService {
     }
 
     // Start call with system prompt, optional voice, and optional language
-    async startCall(systemPrompt: string, voiceId?: string, language?: string, onMessage?: (message: any) => void) {
+    async startCall(systemPrompt: string, voiceId?: string, language?: string, onMessage?: (message: any) => void, additionalFunctions?: any[]) {
         if (!this.vapi) throw new Error('VAPI not initialized')
 
         // Map language names to Deepgram language codes
@@ -36,6 +36,37 @@ class VapiService {
             // For Hindi, we need ElevenLabs multilingual model
             const elevenLabsModel = language && language !== 'English' ? 'eleven_multilingual_v2' : undefined
 
+            // Default functions
+            const defaultFunctions = [
+                {
+                    name: 'submitFeedback',
+                    description: 'Submit the final interview feedback and score. Call this AFTER verbally giving feedback to the candidate.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            score: {
+                                type: 'number',
+                                description: 'Score from 0-10'
+                            },
+                            areasGoodIn: {
+                                type: 'array',
+                                items: { type: 'string' },
+                                description: 'List of 2-3 things the candidate did well'
+                            },
+                            areasToWorkOn: {
+                                type: 'array',
+                                items: { type: 'string' },
+                                description: 'List of 2 areas for improvement'
+                            }
+                        },
+                        required: ['score', 'areasGoodIn', 'areasToWorkOn']
+                    }
+                }
+            ]
+
+            // Merge additional functions
+            const functions = [...defaultFunctions, ...(additionalFunctions || [])]
+
             await this.vapi.start({
                 model: {
                     provider: 'openai',
@@ -47,32 +78,7 @@ class VapiService {
                         }
                     ],
                     // Add function calling
-                    functions: [
-                        {
-                            name: 'submitFeedback',
-                            description: 'Submit the final interview feedback and score. Call this AFTER verbally giving feedback to the candidate.',
-                            parameters: {
-                                type: 'object',
-                                properties: {
-                                    score: {
-                                        type: 'number',
-                                        description: 'Score from 0-10'
-                                    },
-                                    areasGoodIn: {
-                                        type: 'array',
-                                        items: { type: 'string' },
-                                        description: 'List of 2-3 things the candidate did well'
-                                    },
-                                    areasToWorkOn: {
-                                        type: 'array',
-                                        items: { type: 'string' },
-                                        description: 'List of 2 areas for improvement'
-                                    }
-                                },
-                                required: ['score', 'areasGoodIn', 'areasToWorkOn']
-                            }
-                        }
-                    ]
+                    functions: functions
                 } as any, // Bypass TypeScript for function calling
                 voice: {
                     provider: '11labs',
@@ -90,8 +96,12 @@ class VapiService {
 
             // Listen to ALL messages with debugging
             this.vapi.on('message', (message: any) => {
-                console.log('📨 VAPI Message:', message.type || 'unknown', message)
+                // Log only non-transcript messages to avoid clutter, or log everything if needed
+                if (message.type !== 'transcript') {
+                    console.log('📨 VAPI Message:', message.type, message)
+                }
 
+                // Forward all messages to custom handler
                 if (onMessage) {
                     onMessage(message)
                 }
@@ -102,9 +112,10 @@ class VapiService {
                 this.isCallActive = false
             })
 
+            console.log('✅ VAPI Call started successfully')
             return { success: true }
         } catch (error: any) {
-            console.error('VAPI start call error:', error)
+            console.error('❌ VAPI Call failed:', error)
             console.error('Error details:', {
                 message: error?.message,
                 stack: error?.stack,
@@ -115,26 +126,24 @@ class VapiService {
         }
     }
 
-    // End call
     async endCall() {
-        if (!this.vapi || !this.isCallActive) return
-
+        if (!this.vapi) return
         try {
             await this.vapi.stop()
             this.isCallActive = false
+            console.log('VAPI call ended')
         } catch (error) {
-            console.error('VAPI end call error:', error)
-            throw error
+            console.error('Error ending VAPI call:', error)
         }
     }
 
-    // Toggle mute
     toggleMute() {
         if (!this.vapi) return
+        this.vapi.setMuted(!this.vapi.isMuted())
+    }
 
-        const isMuted = this.vapi.isMuted()
-        this.vapi.setMuted(!isMuted)
-        return !isMuted
+    isMuted() {
+        return this.vapi?.isMuted() || false
     }
 
     // Get call status
@@ -152,6 +161,42 @@ class VapiService {
     off(event: string, callback: (data: any) => void) {
         if (!this.vapi) return
         this.vapi.off(event as any, callback)
+    }
+
+    // Send tool result back to VAPI
+    sendToolResult(toolCallId: string, result: any) {
+        if (!this.vapi) {
+            console.error('VAPI not initialized')
+            return
+        }
+
+        try {
+            // VAPI Web SDK: inject the function result as a system message
+            // Client-side VAPI doesn't support direct function-call responses
+            // We need to add it as a message that the AI can see
+            console.log('📤 Injecting tool result into conversation:', { toolCallId, result })
+
+            // Parse the result if it's a JSON string
+            let resultData = result
+            try {
+                resultData = typeof result === 'string' ? JSON.parse(result) : result
+            } catch (e) {
+                // If not JSON, use as-is
+            }
+
+            // Inject as a system message containing the function result
+            this.vapi.send({
+                type: 'add-message',
+                message: {
+                    role: 'system',
+                    content: `Function call result for ${toolCallId}:\n${resultData.message || JSON.stringify(resultData)}`
+                }
+            })
+
+            console.log('✅ Tool result injected successfully')
+        } catch (error) {
+            console.error('Error sending tool result:', error)
+        }
     }
 }
 

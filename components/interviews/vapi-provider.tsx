@@ -7,7 +7,7 @@ interface VapiContextType {
   isCallActive: boolean
   isMuted: boolean
   transcript: { role: string; content: string }[]
-  startCall: (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => void) => Promise<void>
+  startCall: (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => any, additionalFunctions?: any[]) => Promise<void>
   endCall: () => Promise<void>
   toggleMute: () => void
 }
@@ -19,11 +19,11 @@ export function VapiProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false)
   const [transcript, setTranscript] = useState<{ role: string; content: string }[]>([])
 
-  const startCall = useCallback(async (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => void) => {
+  const startCall = useCallback(async (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => any, additionalFunctions?: any[]) => {
     try {
-      await vapiService.startCall(systemPrompt, voiceId, language, (message: any) => {
+      await vapiService.startCall(systemPrompt, voiceId, language, async (message: any) => {
         // Log all messages for debugging
-        console.log('📥 VAPI Provider received:', message)
+        // console.log('📥 VAPI Provider received:', message)
         
         if (message.type === 'transcript') {
           setTranscript(prev => [
@@ -43,6 +43,7 @@ export function VapiProvider({ children }: { children: ReactNode }) {
           // Extract function name and parameters
           const functionName = toolCall.function?.name || toolCall.name
           const functionArgs = toolCall.function?.arguments || toolCall.arguments || toolCall.parameters
+          const toolCallId = toolCall.id
           
           // Parse arguments if they're a string
           const parsedArgs = typeof functionArgs === 'string' 
@@ -50,9 +51,19 @@ export function VapiProvider({ children }: { children: ReactNode }) {
             : functionArgs
           
           console.log('✅ Calling function:', functionName, 'with args:', parsedArgs)
-          onFunctionCall(functionName, parsedArgs)
+          
+          // Call the function handler
+          onFunctionCall(functionName, parsedArgs).then((result: any) => {
+            if (result) {
+              console.log('📤 Function returned result, sending back to VAPI...')
+              // Send the result back to VAPI so the AI model can see it
+              vapiService.sendToolResult(toolCallId, result)
+            }
+          }).catch((error: any) => {
+            console.error('❌ Function call error:', error)
+          })
         }
-      })
+      }, additionalFunctions)
       setIsCallActive(true)
       console.log('VAPI call started successfully')
     } catch (error) {

@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Mic, MicOff, PhoneOff, X } from "lucide-react"
 import { useVapi } from "./vapi-provider"
 import { useRouter } from "next/navigation"
 import { apiService } from "@/lib/api"
-import { DSAProblemView } from "@/components/dsa/dsa-problem-view"
+import { DSAWorkspace } from "@/components/dsa/dsa-workspace"
 
 interface CodingInterviewLayoutProps {
   session: any
@@ -18,6 +18,67 @@ export function CodingInterviewLayout({ session, interview, systemPrompt }: Codi
   const router = useRouter()
   const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute } = useVapi()
   const [isAvatarHidden, setIsAvatarHidden] = useState(false)
+  
+  // Workspace State
+  const [problem, setProblem] = useState<any>(null)
+  const [code, setCode] = useState("")
+  const [language, setLanguage] = useState("javascript")
+  const [activeResultTab, setActiveResultTab] = useState<"testcases" | "custom">("testcases")
+  const [testResults, setTestResults] = useState<any>(null)
+  const [isRunning, setIsRunning] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Ref to access current code in callbacks without dependency issues
+  const codeRef = useRef(code)
+  
+  useEffect(() => {
+    codeRef.current = code
+  }, [code])
+
+  // Load appropriate problem
+  useEffect(() => {
+      loadProblem()
+  }, [interview])
+
+  const loadProblem = async () => {
+      // Logic:
+      // 1. If session has a specific problem assigned, use that (future feature)
+      // 2. Since this is a "Mock Interview" which might not be linked to a specific DB problem ID yet,
+      //    we can either fetch a random one from DB or generate a "Generic" placeholder.
+      
+      // For now, let's try to fetch a random problem suitable for the interview level
+      // Or just load the "mock-problem" if it exists in DB, else use a Generic "Interview Question"
+      
+      try {
+          // Attempt to fetch a random problem - or a specific one if you have that logic
+          // As a fallback for this demo, we create a generic problem object that allows free coding
+          const genericProblem = {
+              _id: "mock-session-problem",
+              title: "Coding Interview Question",
+              difficulty: "Medium",
+              description: `
+                <h3>Problem Description</h3>
+                <p>The interviewer will ask you a specific algorithmic question. Use this editor to write your solution.</p>
+                <p><strong>Listen carefully to the problem statement from the AI Interviewer.</strong></p>
+                <p>You can ask clarifying questions if needed.</p>
+              `,
+              starterCode: {
+                  javascript: "// Write your solution here\nfunction solution() {\n  \n}",
+                  python: "# Write your solution here\ndef solution():\n    pass",
+                  java: "// Write your solution here\nclass Solution {\n    public void solution() {\n        \n    }\n}",
+                  cpp: "// Write your solution here\nvoid solution() {\n    \n}"
+              },
+              examples: [],
+              constraints: [],
+              companies: []
+          }
+           setProblem(genericProblem)
+           setCode(genericProblem.starterCode['javascript'])
+      } catch (err) {
+          console.error("Failed to load problem", err)
+      }
+  }
+
 
   useEffect(() => {
     // Use the backend-generated system prompt if available
@@ -28,53 +89,149 @@ Guide the candidate through the coding problem.`
     
     console.log('Using system prompt:', prompt.substring(0, 200) + '...')
     
+    // Define the 'readCode' tool
+    const additionalFunctions = [
+        {
+            name: "readCode",
+            description: "Read the code currently written by the candidate in the editor. Use this to check their progress, syntax, or logic.",
+            parameters: {
+                type: "object",
+                properties: {}, // No params needed
+            }
+        }
+    ]
+    
     // Auto-start VAPI call with voice and language preferences
     if (prompt && !isCallActive) {
       const voiceId = (session as any).voiceId || '21m00Tcm4TlvDq8ikWAM' // Rachel - default
       const language = (session as any).language || 'English'
-      startCall(prompt, voiceId, language).catch(err => console.error("Failed to start VAPI:", err))
+      
+      const handleFunctionCall = async (name: string, args: any) => {
+           if (name === 'readCode') {
+               const currentCode = codeRef.current
+               console.log("👀 AI is reading code:", currentCode)
+               // IMPORTANT: We need to give this info back to the AI.
+               // Since VAPI's tool-call flow in the browser SDK doesn't always support direct return values easily 
+               // (depending on version), a reliable hack is to 'inject' a system message or user message 
+               // representing the result.
+               
+               // However, if we assume the standard "return result" flow works in the provider, we return it.
+               // We will format it clearly.
+               return `[Current Code Context]:\n\`\`\`${language}\n${currentCode}\n\`\`\``
+           }
+           
+           // Handle submitFeedback (logic duplicated here or handled in provider? 
+           // Provider handles 'submitFeedback' if passed to it or default? 
+           // In our provider, we just forward calls. We need to handle submitFeedback here too if needed, 
+           // OR let the provider handle it?
+           // The provider has logic to generic 'onFunctionCall' but checking previous code,
+           // the VoicLayout handled 'submitFeedback' explicitly. This Layout didn't have it before.
+           
+           if (name === 'submitFeedback') {
+               // Logic similar to VoiceInterviewLayout
+               await handleFeedbackSubmission(args)
+           }
+      }
+      
+      startCall(prompt, voiceId, language, handleFunctionCall, additionalFunctions).catch(err => console.error("Failed to start VAPI:", err))
     }
-  }, [systemPrompt])
+  }, [systemPrompt]) // Dependency array intentionally limited to avoid restarts
+
+  const handleFeedbackSubmission = async (args: any) => {
+      console.log('✅ AI submitted feedback:', args)
+      
+      // Build feedback text
+      let feedbackText = `Interview completed with score ${args.score}/10\n\n`
+      
+      if (args.areasGoodIn?.length > 0) {
+        feedbackText += "**What You Did Well:**\n"
+        args.areasGoodIn.forEach((area: string, i: number) => {
+          feedbackText += `${i + 1}. ${area}\n`
+        })
+        feedbackText += "\n"
+      }
+      
+      if (args.areasToWorkOn?.length > 0) {
+        feedbackText += "**Top Areas for Improvement:**\n"
+        args.areasToWorkOn.forEach((area: string, i: number) => {
+          feedbackText += `${i + 1}. ${area}\n`
+        })
+      }
+      
+      // Save to backend
+      try {
+        await apiService.interviewSessions.updateScore(session._id, {
+          stage: session.currentStage,
+          score: args.score,
+          feedback: feedbackText
+        })
+        
+        // End call
+        await endCall()
+        
+        // Auto-redirect
+        setTimeout(() => {
+          router.push("/interviews")
+        }, 1000) 
+      } catch (error) {
+        console.error("Failed to save feedback:", error)
+      }
+  }
 
   const handleEndInterview = async () => {
-    // Extract score from transcript before ending
-    let extractedScore = 7 // Default fallback
-    
-    // Look for score patterns in AI messages
-    const aiMessages = transcript.filter(t => t.role === "assistant")
-    for (const msg of aiMessages.reverse()) {
-      const scoreMatch = msg.content.match(/score[:\s]+(\d+(?:\.\d+)?)\s*(?:out of|\/|\s*tenths?\s*)\s*(?:10)?/i) ||
-                        msg.content.match(/(\d+(?:\.\d+)?)\s*(?:out of|\/)\s*10/i) ||
-                        msg.content.match(/your score[:\s,]+(\d+(?:\.\d+)?)/i)
-      
-      if (scoreMatch) {
-        extractedScore = parseFloat(scoreMatch[1])
-        console.log("Extracted score from transcript:", extractedScore)
-        break
-      }
-    }
-    
+    // Manually end call
     await endCall()
-    
-    try {
-      console.log("Saving interview with score:", extractedScore)
-      await apiService.interviewSessions.updateScore(session._id, {
-        stage: session.currentStage,
-        score: extractedScore,
-        feedback: `Interview completed with score ${extractedScore}/10`
-      })
-      router.push("/interviews")
-    } catch (error) {
-      console.error("Failed to update score:", error)
-      alert("Failed to save interview progress. Please try again.")
-    }
+    router.push("/interviews")
+  }
+  
+  // Dummy Handlers for the Workspace (since we might not have a real backend runner for "Generic" problems yet)
+  const handleRun = async () => {
+      setIsRunning(true)
+      // Simulate running for 1s
+      setTimeout(() => {
+          setIsRunning(false)
+          setTestResults({
+              type: 'run',
+              accepted: true, 
+              testResults: [{passed: true, input: 'custom', expectedOutput: 'N/A', actualOutput: 'Output from code...'}]
+          })
+          setActiveResultTab("testcases")
+      }, 1000)
+  }
+  
+  const handleSubmit = async () => {
+      setIsSubmitting(true)
+      setTimeout(() => {
+          setIsSubmitting(false)
+          setTestResults({
+              type: 'submit',
+              accepted: true, 
+              testResults: []
+          })
+      }, 1000)
   }
 
   return (
     <div className="relative h-screen overflow-hidden">
-      {/* DSA Problem View - Full Screen */}
+      {/* Unified DSA Workspace */}
       <div className="h-full w-full">
-        <DSAProblemView problemId="mock-problem" />
+         <DSAWorkspace 
+            problem={problem}
+            code={code}
+            language={language}
+            onCodeChange={setCode}
+            onLanguageChange={setLanguage}
+            onRun={handleRun}
+            onSubmit={handleSubmit}
+            onReset={() => setCode(problem?.starterCode?.[language] || "")}
+            isRunning={isRunning}
+            isSubmitting={isSubmitting}
+            testResults={testResults}
+            activeResultTab={activeResultTab}
+            setActiveResultTab={setActiveResultTab}
+            backLink="/interviews"
+            aiEnabled={false} // Sidebar not needed as we have avatars
+         />
       </div>
 
       {/* Interview Avatars Overlay - Top Right */}
@@ -105,21 +262,9 @@ Guide the candidate through the coding problem.`
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold">AI Interviewer</h3>
-                <p className="text-xs text-muted-foreground">Listening...</p>
+                <p className="text-xs text-muted-foreground">{isCallActive ? "Monitoring..." : "Paused"}</p>
               </div>
-            </div>
-
-            {/* User Avatar */}
-            <div className="flex items-center gap-3 mb-3 p-3 bg-secondary/20 rounded-lg">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-2xl">
-                😊
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold">You</h3>
-                <p className="text-xs text-muted-foreground">
-                  {isMuted ? "Muted" : "Active"}
-                </p>
-              </div>
+              {/* Visual indicator when reading code? */}
             </div>
 
             {/* Transcript Preview */}
