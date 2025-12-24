@@ -57,19 +57,16 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
     }
   }
 
-  // Merge static options with API counts
+  // Use API options directly to show ALL available tags
   const getDataStructuresWithCounts = () => {
-    return ALL_DATA_STRUCTURES.map(ds => {
-      const found = filterOptions?.dataStructures.find(f => f._id === ds)
-      return { _id: ds, count: found?.count || 0 }
-    })
+    if (!filterOptions?.dataStructures) return []
+    // Sort by name
+    return [...filterOptions.dataStructures].sort((a, b) => a._id.localeCompare(b._id))
   }
 
   const getPatternsWithCounts = () => {
-    return ALL_PATTERNS.map(pattern => {
-      const found = filterOptions?.patterns.find(f => f._id === pattern)
-      return { _id: pattern, count: found?.count || 0 }
-    })
+    if (!filterOptions?.patterns) return []
+    return [...filterOptions.patterns].sort((a, b) => a._id.localeCompare(b._id))
   }
 
   const getDifficultiesWithCounts = () => {
@@ -122,33 +119,33 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4 sticky top-24">
+    <div className="bg-card rounded-xl border border-border p-4 sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-secondary">
       <h3 className="font-semibold mb-4">Filters</h3>
 
       {/* Data Structures */}
-      <div className="mb-4">
+      <div className="mb-4 border-b border-border/50 pb-4">
         <button
           onClick={() => toggleSection("ds")}
-          className="flex items-center justify-between w-full text-sm font-medium py-2"
+          className="flex items-center justify-between w-full text-sm font-medium py-2 hover:text-primary transition-colors"
         >
           Data Structures
           {expandedSections.includes("ds") ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
         {expandedSections.includes("ds") && (
-          <div className="space-y-1 mt-2">
+          <div className="space-y-1 mt-2 max-h-56 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted">
             {getDataStructuresWithCounts().map((ds) => (
               <label
                 key={ds._id}
-                className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
+                className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground transition-colors"
               >
                 <input
                   type="checkbox"
-                  className="rounded border-border"
+                  className="rounded border-border w-4 h-4"
                   checked={selectedDataStructures.includes(ds._id)}
                   onChange={() => toggleSelection(selectedDataStructures, ds._id, setSelectedDataStructures)}
                 />
-                <span className="flex-1">{ds._id}</span>
-                <span className="text-xs">{ds.count}</span>
+                <span className="flex-1 truncate" title={ds._id}>{ds._id}</span>
+                <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-full">{ds.count}</span>
               </label>
             ))}
           </div>
@@ -156,10 +153,10 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
       </div>
 
       {/* Patterns */}
-      <div className="mb-4">
+      <div className="mb-4 border-b border-border/50 pb-4">
         <button
           onClick={() => toggleSection("patterns")}
-          className="flex items-center justify-between w-full text-sm font-medium py-2"
+          className="flex items-center justify-between w-full text-sm font-medium py-2 hover:text-primary transition-colors"
         >
           Patterns
           {expandedSections.includes("patterns") ? (
@@ -169,20 +166,20 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
           )}
         </button>
         {expandedSections.includes("patterns") && (
-          <div className="space-y-1 mt-2">
+          <div className="space-y-1 mt-2 max-h-56 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted">
             {getPatternsWithCounts().map((pattern) => (
               <label
                 key={pattern._id}
-                className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
+                className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground transition-colors"
               >
                 <input
                   type="checkbox"
-                  className="rounded border-border"
+                  className="rounded border-border w-4 h-4"
                   checked={selectedPatterns.includes(pattern._id)}
                   onChange={() => toggleSelection(selectedPatterns, pattern._id, setSelectedPatterns)}
                 />
-                <span className="flex-1">{pattern._id}</span>
-                <span className="text-xs">{pattern.count}</span>
+                <span className="flex-1 truncate" title={pattern._id}>{pattern._id}</span>
+                <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-full">{pattern.count}</span>
               </label>
             ))}
           </div>
@@ -190,10 +187,10 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
       </div>
 
       {/* Difficulty */}
-      <div className="mb-4">
+      <div className="mb-6">
         <button
           onClick={() => toggleSection("difficulty")}
-          className="flex items-center justify-between w-full text-sm font-medium py-2"
+          className="flex items-center justify-between w-full text-sm font-medium py-2 hover:text-primary transition-colors"
         >
           Difficulty
           {expandedSections.includes("difficulty") ? (
@@ -205,26 +202,26 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
         {expandedSections.includes("difficulty") && (
           <div className="space-y-1 mt-2">
             {getDifficultiesWithCounts().map((diff) => (
-              <label key={diff._id} className="flex items-center gap-2 text-sm cursor-pointer py-1">
+              <label key={diff._id} className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:bg-muted/30 rounded px-1 -mx-1 transition-colors">
                 <input
                   type="checkbox"
-                  className="rounded border-border"
+                  className="rounded border-border w-4 h-4"
                   checked={selectedDifficulties.includes(diff._id)}
                   onChange={() => toggleSelection(selectedDifficulties, diff._id, setSelectedDifficulties)}
                 />
                 <span className={`flex-1 ${getDifficultyColor(diff._id)}`}>{diff._id}</span>
-                <span className="text-xs text-muted-foreground">{diff.count}</span>
+                <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-full">{diff.count}</span>
               </label>
             ))}
           </div>
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 sticky bottom-0 bg-card pt-2 mt-4 border-t border-border">
         <Button variant="default" size="sm" className="w-full" onClick={applyFilters}>
           Apply Filters
         </Button>
-        <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={clearFilters}>
+        <Button variant="outline" size="sm" className="w-full bg-transparent hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30" onClick={clearFilters}>
           Clear All Filters
         </Button>
       </div>

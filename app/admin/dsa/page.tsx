@@ -120,9 +120,18 @@ export default function DSAAdminPage() {
               problems.map((problem) => (
                 <TableRow key={problem._id}>
                   <TableCell>
-                    <span className="font-mono text-sm font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
-                      #{problem.problemNumber || 'N/A'}
-                    </span>
+                    <div className="relative inline-block">
+                      <span className="font-mono text-sm font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                        #{problem.problemNumber || 'N/A'}
+                      </span>
+                      {/* Red dot for design problems */}
+                      {problem.isSolvableLeetcode === false && (
+                        <div 
+                          className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"
+                          title="Design Problem - Manual Implementation Only"
+                        />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium">{problem.title}</TableCell>
                   <TableCell>

@@ -162,10 +162,17 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
               href={`/dsa/${problem.slug || problem._id}`}
               className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors"
             >
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 relative">
                 <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20">
                   #{problem.problemNumber || '?'}
                 </span>
+                {/* Red dot for design problems (not executable) */}
+                {problem.isSolvableLeetcode === false && (
+                  <div 
+                    className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-background"
+                    title="Design Problem - Manual Implementation Only"
+                  />
+                )}
               </div>
 
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
