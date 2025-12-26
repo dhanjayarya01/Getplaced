@@ -91,6 +91,12 @@ export function CompanyInterviewRoom({ companyId, roleIndex, roundNumber }: Comp
 
   const role = company.rolesData[roleIndex]
   const round = role.hiringPipeline.find((r: any) => r.roundNumber === roundNumber)
+  
+  console.log('🎯 Loading interview:')
+  console.log('  - roleIndex:', roleIndex)
+  console.log('  - Selected role:', role?.roleName)
+  console.log('  - roundNumber:', roundNumber)
+  console.log('  - Selected round:', round?.roundName)
 
   if (!round) {
     return <div>Round not found</div>
