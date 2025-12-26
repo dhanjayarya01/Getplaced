@@ -194,7 +194,8 @@ createProblem - MUST include ALL:
 
 Be friendly, encouraging, and time-aware. Let's begin!`
 
-    const prompt = codingInterviewPrompt
+    // Use passed systemPrompt if provided, otherwise use default
+    const prompt = systemPrompt || codingInterviewPrompt
     
     console.log('Using system prompt:', prompt.substring(0, 200) + '...')
     
