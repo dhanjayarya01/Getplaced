@@ -108,11 +108,24 @@ export function CompanyList({ companies, loading, error, onRetry }: CompanyListP
                     </div>
                 )}
 
-                {company.roles && company.roles.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {company.roles.slice(0, 3).map((role: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-secondary rounded-full text-sm">{role}</span>
-                    ))}
+                {/* Roles from rolesData */}
+                {company.rolesData && company.rolesData.length > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-semibold text-primary">{company.rolesData.length} {company.rolesData.length === 1 ? 'Role' : 'Roles'} Available</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {company.rolesData.slice(0, 3).map((role: any, index: number) => (
+                        <span key={index} className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-sm font-medium">
+                          {role.roleName}
+                        </span>
+                      ))}
+                      {company.rolesData.length > 3 && (
+                        <span className="px-3 py-1 bg-secondary rounded-full text-sm text-muted-foreground">
+                          +{company.rolesData.length - 3} more
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
 

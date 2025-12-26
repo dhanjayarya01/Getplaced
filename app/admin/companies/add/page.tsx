@@ -8,25 +8,73 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { X, Plus, Search, ChevronLeft, ChevronRight, Check } from "lucide-react"
+import { X, Plus, ChevronLeft, ChevronRight, Trash2, Save } from "lucide-react"
 
+// Types
+interface Round {
+  roundNumber: number
+  roundName: string
+  roundType: string
+  description: string
+  duration: string
+  passingCriteria: { minimumScore: number, description: string }
+}
+
+interface Question {
+  question: string
+  type: string
+  difficulty: string
+  roundNumber: number | null
+  answer: string
+  tips: string[]
+}
+
+interface LinkedProblem {
+  problem: string
+  title: string
+  frequency: string
+  roundNumber: number | null
+  notes: string
+}
+
+interface Role {
+  roleName: string
+  description: string
+  hiringPipeline: Round[]
+  linkedDSAProblems: LinkedProblem[]
+  linkedDevProblems: LinkedProblem[]
+  interviewQuestions: Question[]
+}
+
+interface Pattern {
+  name: string
+  category: string
+  description: string
+  frequency: string
+  examples: string[]
+  tips: string[]
+}
+
+// Constants
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Very Hard']
+const FREQUENCY_OPTIONS = ['Very High', 'High', 'Medium', 'Low']
 const ROUND_TYPES = [
-  'aptitude',
-  'coding',
-  'technical-interview',
-  'behavioral-interview',
-  'hr-interview',
-  'system-design',
-  'assignment',
-  'group-discussion',
+  'aptitude', 'coding', 'technical-interview', 'behavioral-interview',
+  'hr-interview', 'system-design', 'assignment', 'group-discussion',
+  'online-assessment', 'machine-coding',
 ]
+const QUESTION_TYPES = ['Technical', 'Behavioral', 'HR', 'System Design', 'Aptitude']
+const PATTERN_CATEGORIES = ['DSA', 'System Design', 'Behavioral', 'Other']
+const EDUCATION_LEVELS = ['B.Tech', 'M.Tech', 'BCA', 'MCA', 'B.Sc', 'M.Sc', 'Any Graduate', 'Any Post Graduate']
+const WORK_MODES = ['Remote', 'Hybrid', 'On-site']
 
-export default function AddCompany() {
+export default function AddCompanyPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1) // 1 or 2
-  
+  const [step, setStep] = useState(1) // 1: Basic, 2: Roles, 3: Patterns
+
+  // ==================== STATE ====================
+
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -36,1342 +84,1040 @@ export default function AddCompany() {
     industry: '',
     headquarters: '',
     locations: [''],
-    employeeCount: '',
-    founded: null as number | null,
-    roles: [] as string[],
+    employeeCount: '', // ADDED
+    founded: '',       // ADDED
     difficulty: 'Medium',
-    averagePackage: {
-      min: 0,
-      max: 0,
-      currency: 'INR'
-    },
-    requirements: [''],
-    techStack: [] as string[],
+    averagePackage: { min: 0, max: 0, currency: 'INR' },
+    requirements: [''], // ADDED
+    techStack: [''],    // ADDED
     benefits: [''],
+    interviewTips: [''], // ADDED
+    
+    // Eligibility
     eligibilityCriteria: {
-      minCGPA: null as number | null,
-      minPercentage: null as number | null,
-      educationLevel: '',
-      allowedBranches: [] as string[],
-      maxBacklogs: null as number | null,
-      yearOfPassing: [] as number[],
-      ageLimit: null as number | null,
+      minCGPA: '',
+      minPercentage: '',
+      educationLevel: 'Any Graduate',
+      allowedBranches: [''],
+      maxBacklogs: '',
+      yearOfPassing: [''],
+      ageLimit: '',
     },
-    interviewTips: [''],
+
+    // Hiring Details
+    hiringFreshers: false, // ADDED
+    experienceRequired: { min: 0, max: 5 }, // ADDED
+    workModes: [], // ADDED
+    remoteMinExperience: 0, // ADDED
+
     isHiring: true,
-    isActive: true
+    isActive: true,
+    isPremium: false
   })
 
-  // Hiring pipeline state
-  const [hiringPipeline, setHiringPipeline] = useState<any[]>([])
+  // Roles Data
+  const [rolesData, setRolesData] = useState<Role[]>([])
+  const [activeRoleIndex, setActiveRoleIndex] = useState(0)
 
-  // Problem linking state
+  // Patterns Data
+  const [patterns, setPatterns] = useState<Pattern[]>([])
+
+  // Problem Linking State
   const [dsaSearch, setDsaSearch] = useState('')
-  const [dsaSearchResults, setDsaSearchResults] = useState<any[]>([])
-  const [selectedDSA, setSelectedDSA] = useState<any[]>([])
-  
   const [devSearch, setDevSearch] = useState('')
+  const [dsaSearchResults, setDsaSearchResults] = useState<any[]>([])
   const [devSearchResults, setDevSearchResults] = useState<any[]>([])
-  const [selectedDev, setSelectedDev] = useState<any[]>([])
+  const [loadingSearch, setLoadingSearch] = useState(false)
 
-  // Interview questions state
-  const [interviewQuestions, setInterviewQuestions] = useState([
-    { question: '', type: 'Technical', difficulty: 'Medium', round: '' }
-  ])
+  // ==================== HELPERS ====================
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   }
 
-  const handleNameChange = (name: string) => {
+  // ==================== BASIC INFO HANDLERS ====================
+
+  const handleBasicChange = (field: string, value: any) => {
+    setFormData(prev => {
+      const updates: any = { [field]: value }
+      if (field === 'name') updates.slug = generateSlug(value)
+      return { ...prev, ...updates }
+    })
+  }
+
+  const handleNestedChange = (parent: string, field: string, value: any) => {
+    // @ts-ignore
     setFormData(prev => ({
       ...prev,
-      name,
-      slug: generateSlug(name)
+      // @ts-ignore
+      [parent]: { ...prev[parent], [field]: value }
     }))
   }
 
-  // Location management
-  const addLocation = () => {
+  const handleArrayChange = (field: string, index: number, value: string) => {
+    // @ts-ignore
     setFormData(prev => ({
       ...prev,
-      locations: [...prev.locations, '']
+      // @ts-ignore
+      [field]: prev[field].map((item: string, i: number) => i === index ? value : item)
     }))
   }
 
-  const updateLocation = (index: number, value: string) => {
-    const newLocations = [...formData.locations]
-    newLocations[index] = value
-    setFormData(prev => ({ ...prev, locations: newLocations }))
+  const addArrayItem = (field: string) => {
+    // @ts-ignore
+    setFormData(prev => ({ ...prev, [field]: [...prev[field], ''] }))
   }
 
-  const removeLocation = (index: number) => {
+  const removeArrayItem = (field: string, index: number) => {
+    // @ts-ignore
+    setFormData(prev => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }))
+  }
+
+  // Nested Array Helpers (for allowedBranches, yearOfPassing)
+  const handleNestedArrayChange = (parent: string, field: string, index: number, value: any) => {
+    // @ts-ignore
     setFormData(prev => ({
       ...prev,
-      locations: prev.locations.filter((_, i) => i !== index)
+      // @ts-ignore
+      [parent]: {
+        // @ts-ignore
+        ...prev[parent],
+        // @ts-ignore
+        [field]: prev[parent][field].map((item: any, i: number) => i === index ? value : item)
+      }
     }))
   }
 
-  // Role management
-  const [newRole, setNewRole] = useState('')
+  const addNestedArrayItem = (parent: string, field: string) => {
+    // @ts-ignore
+    setFormData(prev => ({
+      ...prev,
+      // @ts-ignore
+      [parent]: {
+        // @ts-ignore
+        ...prev[parent],
+        // @ts-ignore
+        [field]: [...prev[parent][field], '']
+      }
+    }))
+  }
+
+  const removeNestedArrayItem = (parent: string, field: string, index: number) => {
+    // @ts-ignore
+    setFormData(prev => ({
+      ...prev,
+      // @ts-ignore
+      [parent]: {
+        // @ts-ignore
+        ...prev[parent],
+        // @ts-ignore
+        [field]: prev[parent][field].filter((_, i) => i !== index)
+      }
+    }))
+  }
+
+
+  const toggleWorkMode = (mode: string) => {
+    setFormData(prev => {
+      // @ts-ignore
+      const modes = prev.workModes.includes(mode)
+        // @ts-ignore
+        ? prev.workModes.filter(m => m !== mode)
+        // @ts-ignore
+        : [...prev.workModes, mode]
+      return { ...prev, workModes: modes }
+    })
+  }
+
+  // ==================== ROLES HANDLERS ====================
 
   const addRole = () => {
-    if (newRole.trim() && !formData.roles.includes(newRole.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        roles: [...prev.roles, newRole.trim()]
-      }))
-      setNewRole('')
-    }
+    setRolesData([
+      ...rolesData,
+      {
+        roleName: 'New Role',
+        description: '',
+        hiringPipeline: [],
+        linkedDSAProblems: [],
+        linkedDevProblems: [],
+        interviewQuestions: []
+      }
+    ])
+    setActiveRoleIndex(rolesData.length)
   }
 
   const removeRole = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      roles: prev.roles.filter((_, i) => i !== index)
-    }))
-  }
-
-  // Interview Tips management
-  const addInterviewTip = () => {
-    setFormData(prev => ({
-      ...prev,
-      interviewTips: [...prev.interviewTips, '']
-    }))
-  }
-
-  const updateInterviewTip = (index: number, value: string) => {
-    const newTips = [...formData.interviewTips]
-    newTips[index] = value
-    setFormData(prev => ({ ...prev, interviewTips: newTips }))
-  }
-
-  const removeInterviewTip = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      interviewTips: prev.interviewTips.filter((_, i) => i !== index)
-    }))
-  }
-
-  // Requirements management
-  const addRequirement = () => {
-    setFormData(prev => ({
-      ...prev,
-      requirements: [...prev.requirements, '']
-    }))
-  }
-
-  const updateRequirement = (index: number, value: string) => {
-    const newReqs = [...formData.requirements]
-    newReqs[index] = value
-    setFormData(prev => ({ ...prev, requirements: newReqs }))
-  }
-
-  const removeRequirement = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      requirements: prev.requirements.filter((_, i) => i !== index)
-    }))
-  }
-
-  // Tech Stack management
-  const [newTech, setNewTech] = useState('')
-
-  const addTech = () => {
-    if (newTech.trim() && !formData.techStack.includes(newTech.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        techStack: [...prev.techStack, newTech.trim()]
-      }))
-      setNewTech('')
+    const newRoles = rolesData.filter((_, i) => i !== index)
+    setRolesData(newRoles)
+    if (activeRoleIndex >= newRoles.length) {
+      setActiveRoleIndex(Math.max(0, newRoles.length - 1))
     }
   }
 
-  const removeTech = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      techStack: prev.techStack.filter((_, i) => i !== index)
-    }))
+  const updateRole = (index: number, field: string, value: any) => {
+    setRolesData(prev => prev.map((role, i) => i === index ? { ...role, [field]: value } : role))
   }
 
-  // Benefits management
-  const addBenefit = () => {
-    setFormData(prev => ({
-      ...prev,
-      benefits: [...prev.benefits, '']
-    }))
-  }
-
-  const updateBenefit = (index: number, value: string) => {
-    const newBenefits = [...formData.benefits]
-    newBenefits[index] = value
-    setFormData(prev => ({ ...prev, benefits: newBenefits }))
-  }
-
-  const removeBenefit = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      benefits: prev.benefits.filter((_, i) => i !== index)
-    }))
-  }
-
-  // Hiring Pipeline management
-  const addHiringRound = () => {
-    setHiringPipeline([...hiringPipeline, {
-      roundNumber: hiringPipeline.length + 1,
+  // Round Handlers
+  const addRound = (roleIndex: number) => {
+    const updatedRoles = [...rolesData]
+    updatedRoles[roleIndex].hiringPipeline.push({
+      roundNumber: updatedRoles[roleIndex].hiringPipeline.length + 1,
       roundName: '',
       roundType: 'coding',
       description: '',
       duration: '',
-      passingCriteria: {
-        minimumScore: 0,
-        description: ''
-      }
-    }])
+      passingCriteria: { minimumScore: 0, description: '' }
+    })
+    setRolesData(updatedRoles)
   }
 
-  const updateHiringRound = (index: number, field: string, value: any) => {
-    const newPipeline = [...hiringPipeline]
+  const updateRound = (roleIndex: number, roundIndex: number, field: string, value: any) => {
+    const updatedRoles = [...rolesData]
     if (field.startsWith('passingCriteria.')) {
-      const criteriaField = field.split('.')[1]
-      newPipeline[index].passingCriteria[criteriaField] = value
+      const subField = field.split('.')[1]
+      // @ts-ignore
+      updatedRoles[roleIndex].hiringPipeline[roundIndex].passingCriteria[subField] = value
     } else {
-      newPipeline[index][field] = value
+      // @ts-ignore
+      updatedRoles[roleIndex].hiringPipeline[roundIndex][field] = value
     }
-    setHiringPipeline(newPipeline)
+    setRolesData(updatedRoles)
   }
 
-  const removeHiringRound = (index: number) => {
-    setHiringPipeline(hiringPipeline.filter((_, i) => i !== index))
+  const removeRound = (roleIndex: number, roundIndex: number) => {
+    const updatedRoles = [...rolesData]
+    updatedRoles[roleIndex].hiringPipeline.splice(roundIndex, 1)
+    updatedRoles[roleIndex].hiringPipeline.forEach((r, i) => r.roundNumber = i + 1)
+    setRolesData(updatedRoles)
   }
 
-  // DSA Problem Search
-  const searchDSAProblems = async (query: string) => {
-    setDsaSearch(query)
-    if (query.length < 2) {
-      setDsaSearchResults([])
-      return
-    }
-
-    try {
-      const response = await apiService.dsa.getAll({ limit: 20, sort: 'problemNumber' })
-      if (response.success) {
-        const filtered = response.data.filter((p: any) => 
-          p.title.toLowerCase().includes(query.toLowerCase()) ||
-          p.problemNumber?.toString().includes(query)
-        )
-        setDsaSearchResults(filtered.slice(0, 20))
-      }
-    } catch (error) {
-      console.error('Error searching DSA problems:', error)
-      setDsaSearchResults([])
-    }
-  }
-
-  const toggleDSAProblem = (problem: any) => {
-    const exists = selectedDSA.find(p => p.problemId === problem._id)
-    if (exists) {
-      setSelectedDSA(selectedDSA.filter(p => p.problemId !== problem._id))
-    } else {
-      setSelectedDSA([...selectedDSA, {
-        problemId: problem._id,
-        title: problem.title,
-        problemNumber: problem.problemNumber,
-        frequency: 'Medium',
-        round: '',
-        notes: ''
-      }])
-    }
-  }
-
-  const updateDSAField = (index: number, field: keyof typeof selectedDSA[0], value: string) => {
-    setSelectedDSA(prev => {
-      const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
-      return updated
-    })
-  }
-
-  const removeDSAProblem = (index: number) => {
-    setSelectedDSA(selectedDSA.filter((_, i) => i !== index))
-  }
-
-  // Dev Problem Search
-  const searchDevProblems = async (query: string) => {
-    setDevSearch(query)
-    if (query.length < 2) {
-      setDevSearchResults([])
-      return
-    }
-
-    try {
-      const response = await apiService.development.getAll({ limit: 20 })
-      if (response.success) {
-        const filtered = response.data.filter((p: any) => 
-          p.title.toLowerCase().includes(query.toLowerCase())
-        )
-        setDevSearchResults(filtered.slice(0, 20))
-      }
-    } catch (error) {
-      console.error('Error searching Dev problems:', error)
-      setDevSearchResults([])
-    }
-  }
-
-  const toggleDevProblem = (problem: any) => {
-    const exists = selectedDev.find(p => p.problemId === problem._id)
-    if (exists) {
-      setSelectedDev(selectedDev.filter(p => p.problemId !== problem._id))
-    } else {
-      setSelectedDev([...selectedDev, {
-        problemId: problem._id,
-        title: problem.title,
-        frequency: 'Medium',
-        round: '',
-        notes: ''
-      }])
-    }
-  }
-
-  const updateDevField = (index: number, field: keyof typeof selectedDev[0], value: string) => {
-    setSelectedDev(prev => {
-      const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
-      return updated
-    })
-  }
-
-  const removeDevProblem = (index: number) => {
-    setSelectedDev(selectedDev.filter((_, i) => i !== index))
-  }
-
-  // Interview Questions
-  const addQuestion = () => {
-    setInterviewQuestions([...interviewQuestions, {
+  // Question Handlers
+  const addQuestion = (roleIndex: number) => {
+    const updatedRoles = [...rolesData]
+    updatedRoles[roleIndex].interviewQuestions.push({
       question: '',
       type: 'Technical',
       difficulty: 'Medium',
-      round: ''
+      roundNumber: null,
+      answer: '',
+      tips: []
+    })
+    setRolesData(updatedRoles)
+  }
+
+  const updateQuestion = (roleIndex: number, qIndex: number, field: string, value: any) => {
+    const updatedRoles = [...rolesData]
+    // @ts-ignore
+    updatedRoles[roleIndex].interviewQuestions[qIndex][field] = value
+    setRolesData(updatedRoles)
+  }
+
+  const removeQuestion = (roleIndex: number, qIndex: number) => {
+    const updatedRoles = [...rolesData]
+    updatedRoles[roleIndex].interviewQuestions.splice(qIndex, 1)
+    setRolesData(updatedRoles)
+  }
+
+  // ==================== PROBLEM LINKING HANDLERS ====================
+
+  const searchDSA = async () => {
+    if (!dsaSearch.trim()) return
+    setLoadingSearch(true)
+    try {
+      const res = await apiService.dsa.getAll({ search: dsaSearch, limit: 5 })
+      setDsaSearchResults(res.data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingSearch(false)
+    }
+  }
+
+  const searchDev = async () => {
+    if (!devSearch.trim()) return
+    setLoadingSearch(true)
+    try {
+      const res = await apiService.development.getAll({ search: devSearch, limit: 5 })
+      setDevSearchResults(res.data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingSearch(false)
+    }
+  }
+
+  const addProblemToRole = (roleIndex: number, type: 'linkedDSAProblems'|'linkedDevProblems', problem: any) => {
+    const updatedRoles = [...rolesData]
+    if (updatedRoles[roleIndex][type].some((p: any) => p.problem === problem._id)) {
+      alert('Problem already linked to this role')
+      return
+    }
+
+    // Auto-select round if only one exists
+    const roleRounds = updatedRoles[roleIndex].hiringPipeline
+    const defaultRound = roleRounds.length > 0 ? roleRounds[0].roundNumber : null
+
+    updatedRoles[roleIndex][type].push({
+      problem: problem._id,
+      title: problem.title,
+      frequency: 'Medium',
+      roundNumber: defaultRound,
+      notes: ''
+    })
+    setRolesData(updatedRoles)
+    
+    if (type === 'linkedDSAProblems') {
+      setDsaSearch('')
+      setDsaSearchResults([])
+    } else {
+      setDevSearch('')
+      setDevSearchResults([])
+    }
+  }
+
+  const removeProblemFromRole = (roleIndex: number, type: 'linkedDSAProblems'|'linkedDevProblems', linkIndex: number) => {
+    const updatedRoles = [...rolesData]
+    updatedRoles[roleIndex][type].splice(linkIndex, 1)
+    setRolesData(updatedRoles)
+  }
+
+  const updateProblemInRole = (roleIndex: number, type: 'linkedDSAProblems'|'linkedDevProblems', linkIndex: number, field: string, value: any) => {
+    const updatedRoles = [...rolesData]
+    // @ts-ignore
+    updatedRoles[roleIndex][type][linkIndex][field] = value
+    setRolesData(updatedRoles)
+  }
+
+  // ==================== PATTERNS HANDLERS ====================
+
+  const addPattern = () => {
+    setPatterns([...patterns, {
+      name: '',
+      category: 'DSA',
+      description: '',
+      frequency: 'Medium',
+      examples: [],
+      tips: []
     }])
   }
 
-  const updateQuestion = (index: number, field: keyof typeof interviewQuestions[0], value: string) => {
-    setInterviewQuestions(prev => {
-      const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
-      return updated
-    })
+  const removePattern = (index: number) => {
+    setPatterns(patterns.filter((_, i) => i !== index))
   }
 
-  const removeQuestion = (index: number) => {
-    setInterviewQuestions(interviewQuestions.filter((_, i) => i !== index))
+  const updatePattern = (index: number, field: string, value: any) => {
+    setPatterns(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const updatePatternArray = (idx: number, field: 'examples'|'tips', itemIdx: number, val: string) => {
+    setPatterns(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      const arr = [...p[field]]
+      arr[itemIdx] = val
+      return { ...p, [field]: arr }
+    }))
+  }
 
+  const addPatternArrayItem = (idx: number, field: 'examples'|'tips') => {
+    setPatterns(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      return { ...p, [field]: [...p[field], ''] }
+    }))
+  }
+
+  const removePatternArrayItem = (idx: number, field: 'examples'|'tips', itemIdx: number) => {
+    setPatterns(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      const arr =  p[field].filter((_, ii) => ii !== itemIdx)
+      return { ...p, [field]: arr }
+    }))
+  }
+
+  // ==================== SUBMIT ====================
+
+  const handleSubmit = async () => {
     try {
-      // Prepare company data
-      const companyData = {
+      setLoading(true)
+
+      // Clean arrays
+      const cleanLocations = formData.locations.filter(l => l.trim())
+      const cleanRequirements = formData.requirements.filter(r => r.trim())
+      const cleanTechStack = formData.techStack.filter(r => r.trim())
+      const cleanBenefits = formData.benefits.filter(b => b.trim())
+      const cleanTips = formData.interviewTips.filter(t => t.trim())
+      const cleanBranches = formData.eligibilityCriteria.allowedBranches.filter(b => b.trim())
+      // @ts-ignore
+      const cleanPassingYears = formData.eligibilityCriteria.yearOfPassing.filter(y => y && !isNaN(Number(y))).map(Number)
+
+      const payload = {
         ...formData,
-        locations: formData.locations.filter(l => l.trim()),
-        interviewTips: formData.interviewTips.filter(t => t.trim()),
-        hiringPipeline: hiringPipeline
+        founded: Number(formData.founded) || undefined,
+        locations: cleanLocations,
+        requirements: cleanRequirements,
+        techStack: cleanTechStack,
+        benefits: cleanBenefits,
+        interviewTips: cleanTips,
+        eligibilityCriteria: {
+          ...formData.eligibilityCriteria,
+          minCGPA: Number(formData.eligibilityCriteria.minCGPA) || undefined,
+          minPercentage: Number(formData.eligibilityCriteria.minPercentage) || undefined,
+          maxBacklogs: Number(formData.eligibilityCriteria.maxBacklogs) || undefined,
+          ageLimit: Number(formData.eligibilityCriteria.ageLimit) || undefined,
+          allowedBranches: cleanBranches,
+          yearOfPassing: cleanPassingYears,
+        },
+        rolesData,
+        patterns
       }
 
-      // Create company
-      const response = await apiService.companies.create(companyData)
-      
-      if (response.success) {
-        const companyId = response.data._id
-
-        // Link DSA problems
-        for (const dsa of selectedDSA) {
-          await apiService.companies.linkDSA(companyId, {
-            problemId: dsa.problemId,
-            frequency: dsa.frequency,
-            role: dsa.round,
-            notes: dsa.notes
-          })
-        }
-
-        // Link Dev problems
-        for (const dev of selectedDev) {
-          await apiService.companies.linkDev(companyId, {
-            problemId: dev.problemId,
-            frequency: dev.frequency,
-            role: dev.round,
-            notes: dev.notes
-          })
-        }
-
-        // Add interview questions
-        for (const q of interviewQuestions) {
-          if (q.question.trim()) {
-            await apiService.companies.addInterviewQuestion(companyId, q)
-          }
-        }
-
-        alert('Company created successfully with all linked data!')
-        router.push('/admin/companies')
-      } else {
-        alert('Failed to create company: ' + response.message)
-      }
+      await apiService.companies.create(payload)
+      router.push('/admin/companies')
     } catch (error: any) {
-      alert('Error: ' + (error.message || 'Failed to create company'))
+      console.error(error)
+      alert(error.response?.data?.message || 'Failed to create company')
     } finally {
       setLoading(false)
     }
   }
 
-  const nextStep = () => {
-    if (currentStep < 2) setCurrentStep(currentStep + 1)
-  }
-
-  const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1)
-  }
-
   return (
-    <div className="max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">Add Company</h1>
-      <p className="text-muted-foreground mb-8">Complete all steps to add a new company</p>
-
-      {/* Step Indicator */}
-      <div className="flex items-center justify-center mb-8">
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-              {currentStep > 1 ? <Check className="w-4 h-4" /> : '1'}
-            </div>
-            <span className="font-medium">Basic Info</span>
-          </div>
-          <div className="w-16 h-0.5 bg-border" />
-          <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-              2
-            </div>
-            <span className="font-medium">Problems & Questions</span>
-          </div>
+    <div className="container mx-auto py-8 max-w-5xl space-y-8">
+      <div className="flex justify-between items-center">
+        <div>
+           <h1 className="text-3xl font-bold">Add New Company</h1>
+           <p className="text-muted-foreground">Complete comprehensive company profile</p>
+        </div>
+        <div className="flex gap-2">
+           <Button variant={formData.isActive ? "default" : "outline"} onClick={() => handleBasicChange('isActive', !formData.isActive)}>
+             {formData.isActive ? 'Active' : 'Inactive'}
+           </Button>
+           <Button variant={formData.isHiring ? "default" : "outline"} onClick={() => handleBasicChange('isHiring', !formData.isHiring)}>
+             {formData.isHiring ? 'Hiring' : 'Not Hiring'}
+           </Button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Step 1: Basic Info */}
-        {currentStep === 1 && (
-          <>
-            {/* Basic Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
-                <CardDescription>Enter the company's basic details</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+      {/* STEPS TABS */}
+      <div className="flex border-b">
+        <button
+          onClick={() => setStep(1)}
+          className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${step === 1 ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-primary'}`}
+        >
+          1. Company Details
+        </button>
+        <button
+          onClick={() => setStep(2)}
+          className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${step === 2 ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-primary'}`}
+        >
+          2. Roles & Pipeline
+        </button>
+        <button
+          onClick={() => setStep(3)}
+          className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${step === 3 ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-primary'}`}
+        >
+          3. Interview Patterns
+        </button>
+      </div>
+
+      {/* STEP 1: BASIC INFO */}
+      {step === 1 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+          
+          {/* 1.1 Core Info */}
+          <Card>
+            <CardHeader><CardTitle>Core Information</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Company Name *</Label>
+                <Input value={formData.name} onChange={e => handleBasicChange('name', e.target.value)} placeholder="e.g. Google" />
+              </div>
+              <div className="space-y-2">
+                <Label>Slug *</Label>
+                <Input value={formData.slug} onChange={e => handleBasicChange('slug', e.target.value)} placeholder="google" />
+              </div>
+              <div className="space-y-2">
+                <Label>Website</Label>
+                <Input value={formData.website} onChange={e => handleBasicChange('website', e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Logo URL</Label>
+                <Input value={formData.logo} onChange={e => handleBasicChange('logo', e.target.value)} />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label>Description</Label>
+                <Textarea value={formData.description} onChange={e => handleBasicChange('description', e.target.value)} className="h-24" />
+              </div>
+              <div className="space-y-2">
+                 <Label>Employee Count</Label>
+                 <Input value={formData.employeeCount} onChange={e => handleBasicChange('employeeCount', e.target.value)} placeholder="e.g. 10,000+" />
+              </div>
+              <div className="space-y-2">
+                 <Label>Founded Year</Label>
+                 <Input type="number" value={formData.founded} onChange={e => handleBasicChange('founded', e.target.value)} placeholder="1998" />
+              </div>
+              <div className="space-y-2">
+                <Label>Industry</Label>
+                <Input value={formData.industry} onChange={e => handleBasicChange('industry', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                 <Label>Headquarters</Label>
+                 <Input value={formData.headquarters} onChange={e => handleBasicChange('headquarters', e.target.value)} placeholder="City, Country" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 1.2 Eligibility & Work Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             {/* Eligibility */}
+             <Card>
+                <CardHeader><CardTitle>Eligibility Criteria</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                   <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                         <Label className="text-xs">Min CGPA</Label>
+                         <Input type="number" step="0.1" value={formData.eligibilityCriteria.minCGPA} onChange={e => handleNestedChange('eligibilityCriteria', 'minCGPA', e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                         <Label className="text-xs">Min Percentage</Label>
+                         <Input type="number" step="1" value={formData.eligibilityCriteria.minPercentage} onChange={e => handleNestedChange('eligibilityCriteria', 'minPercentage', e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                         <Label className="text-xs">Max Backlogs</Label>
+                         <Input type="number" value={formData.eligibilityCriteria.maxBacklogs} onChange={e => handleNestedChange('eligibilityCriteria', 'maxBacklogs', e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                         <Label className="text-xs">Age Limit</Label>
+                         <Input type="number" value={formData.eligibilityCriteria.ageLimit} onChange={e => handleNestedChange('eligibilityCriteria', 'ageLimit', e.target.value)} />
+                      </div>
+                   </div>
+                   
+                   <div className="space-y-1">
+                      <Label className="text-xs">Education Level</Label>
+                      <select 
+                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                         value={formData.eligibilityCriteria.educationLevel}
+                         onChange={e => handleNestedChange('eligibilityCriteria', 'educationLevel', e.target.value)}
+                      >
+                         {EDUCATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                   </div>
+
+                   <div className="space-y-1">
+                      <Label className="text-xs">Allowed Branches</Label>
+                      {formData.eligibilityCriteria.allowedBranches.map((br, i) => (
+                         <div key={i} className="flex gap-2 mb-1">
+                            <Input className="h-8" value={br} onChange={e => handleNestedArrayChange('eligibilityCriteria', 'allowedBranches', i, e.target.value)} />
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeNestedArrayItem('eligibilityCriteria', 'allowedBranches', i)}><X className="h-3 w-3"/></Button>
+                         </div>
+                      ))}
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addNestedArrayItem('eligibilityCriteria', 'allowedBranches')}><Plus className="h-3 w-3 mr-1"/> Add Branch</Button>
+                   </div>
+
+                   <div className="space-y-1">
+                      <Label className="text-xs">Batch (Passing Years)</Label>
+                      {formData.eligibilityCriteria.yearOfPassing.map((yr, i) => (
+                         <div key={i} className="flex gap-2 mb-1">
+                            <Input type="number" className="h-8" value={yr} onChange={e => handleNestedArrayChange('eligibilityCriteria', 'yearOfPassing', i, e.target.value)} placeholder="YYYY" />
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeNestedArrayItem('eligibilityCriteria', 'yearOfPassing', i)}><X className="h-3 w-3"/></Button>
+                         </div>
+                      ))}
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addNestedArrayItem('eligibilityCriteria', 'yearOfPassing')}><Plus className="h-3 w-3 mr-1"/> Add Year</Button>
+                   </div>
+                </CardContent>
+             </Card>
+
+             {/* Work & Hiring */}
+             <div className="space-y-6">
+                <Card>
+                   <CardHeader><CardTitle>Hiring & Work Mode</CardTitle></CardHeader>
+                   <CardContent className="space-y-4">
+                      <div className="flex items-center space-x-2 border p-3 rounded">
+                         <input type="checkbox" id="hiringFreshers" checked={formData.hiringFreshers} onChange={e => handleBasicChange('hiringFreshers', e.target.checked)} className="h-4 w-4" />
+                         <Label htmlFor="hiringFreshers">Hiring Freshers?</Label>
+                      </div>
+
+                      <div className="space-y-2">
+                         <Label>Experience Required (Years)</Label>
+                         <div className="flex gap-2">
+                            <Input type="number" placeholder="Min" value={formData.experienceRequired.min} onChange={e => handleNestedChange('experienceRequired', 'min', e.target.value)} />
+                            <Input type="number" placeholder="Max" value={formData.experienceRequired.max} onChange={e => handleNestedChange('experienceRequired', 'max', e.target.value)} />
+                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                         <Label>Work Modes</Label>
+                         <div className="flex flex-wrap gap-2">
+                            {WORK_MODES.map(mode => (
+                               <Button
+                                  key={mode}
+                                  type="button"
+                                  size="sm"
+                                  variant={
+                                     // @ts-ignore
+                                     formData.workModes.includes(mode) ? "default" : "outline"
+                                  } 
+                                  onClick={() => toggleWorkMode(mode)}
+                               >
+                                  {mode}
+                               </Button>
+                            ))}
+                         </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                         <Label>Difficulty</Label>
+                         <select 
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={formData.difficulty}
+                            onChange={e => handleBasicChange('difficulty', e.target.value)}
+                         >
+                            {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
+                         </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                         <Label>Package (LPA)</Label>
+                         <div className="flex gap-2">
+                            <Input type="number" placeholder="Min" value={formData.averagePackage.min} onChange={e => handlePackageChange('min', e.target.value)} />
+                            <Input type="number" placeholder="Max" value={formData.averagePackage.max} onChange={e => handlePackageChange('max', e.target.value)} />
+                         </div>
+                      </div>
+                   </CardContent>
+                </Card>
+             </div>
+          </div>
+
+          {/* 1.3 Tech Stack, Requirements, Benefits, Tips */}
+          <Card>
+             <CardHeader><CardTitle>Requirements & Stack</CardTitle></CardHeader>
+             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="name">Company Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="slug">Slug (auto-generated)</Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="logo">Logo URL</Label>
-                    <Input
-                      id="logo"
-                      value={formData.logo}
-                      onChange={(e) => setFormData(prev => ({ ...prev, logo: e.target.value }))}
-                      placeholder="https://..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      value={formData.website}
-                      onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="industry">Industry</Label>
-                    <Input
-                      id="industry"
-                      value={formData.industry}
-                      onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
-                      placeholder="e.g., Technology, Finance"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="headquarters">Headquarters</Label>
-                    <Input
-                      id="headquarters"
-                      value={formData.headquarters}
-                      onChange={(e) => setFormData(prev => ({ ...prev, headquarters: e.target.value }))}
-                      placeholder="e.g., Bangalore, India"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="employeeCount">Employee Count</Label>
-                    <Input
-                      id="employeeCount"
-                      value={formData.employeeCount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, employeeCount: e.target.value }))}
-                      placeholder="e.g., 10,000+"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="founded">Founded Year</Label>
-                    <Input
-                      id="founded"
-                      type="number"
-                      value={formData.founded || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, founded: parseInt(e.target.value) || null }))}
-                      placeholder="e.g., 1998"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Locations</Label>
-                  {formData.locations.map((location, index) => (
-                    <div key={index} className="flex gap-2 mt-2">
-                      <Input
-                        value={location}
-                        onChange={(e) => updateLocation(index, e.target.value)}
-                        placeholder="e.g., Bangalore"
-                      />
-                      {formData.locations.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeLocation(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
+                  <Label className="mb-2 block">Tech Stack</Label>
+                  {formData.techStack.map((tech, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <Input value={tech} onChange={e => handleArrayChange('techStack', i, e.target.value)} placeholder="e.g. React" />
+                      <Button variant="ghost" size="icon" onClick={() => removeArrayItem('techStack', i)}><X className="h-4 w-4"/></Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" onClick={addLocation} className="mt-2">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Location
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => addArrayItem('techStack')}><Plus className="h-4 w-4 mr-2"/> Add Tech</Button>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Roles */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Roles</CardTitle>
-                <CardDescription>Add available roles at this company</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div>
-                  <Label>Add Role</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          addRole()
-                        }
-                      }}
-                      placeholder="e.g., Frontend Developer"
-                    />
-                    <Button type="button" onClick={addRole}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {formData.roles.length > 0 && (
-                  <div>
-                    <Label>Added Roles ({formData.roles.length})</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.roles.map((role, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md text-sm"
-                        >
-                          <span>{role}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeRole(index)}
-                            className="hover:text-destructive"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                  <Label className="mb-2 block">Job Requirements</Label>
+                  {formData.requirements.map((req, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <Input value={req} onChange={e => handleArrayChange('requirements', i, e.target.value)} placeholder="e.g. 3+ years experience" />
+                      <Button variant="ghost" size="icon" onClick={() => removeArrayItem('requirements', i)}><X className="h-4 w-4"/></Button>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ))}
+                  <Button size="sm" variant="outline" onClick={() => addArrayItem('requirements')}><Plus className="h-4 w-4 mr-2"/> Add Requirement</Button>
+                </div>
 
-            {/* Hiring Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Hiring Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="difficulty">Interview Difficulty *</Label>
-                  <select
-                    id="difficulty"
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    required
-                  >
-                    {DIFFICULTIES.map(diff => (
-                      <option key={diff} value={diff}>{diff}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="minPackage">Min Package (LPA)</Label>
-                    <Input
-                      id="minPackage"
-                      type="number"
-                      value={formData.averagePackage.min}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        averagePackage: { ...prev.averagePackage, min: parseInt(e.target.value) }
-                      }))}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="maxPackage">Max Package (LPA)</Label>
-                    <Input
-                      id="maxPackage"
-                      type="number"
-                      value={formData.averagePackage.max}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        averagePackage: { ...prev.averagePackage, max: parseInt(e.target.value) }
-                      }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isHiring"
-                      checked={formData.isHiring}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isHiring: e.target.checked }))}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    />
-                    <Label htmlFor="isHiring" className="cursor-pointer">
-                      Currently Hiring
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    />
-                    <Label htmlFor="isActive" className="cursor-pointer">
-                      Active (Visible to users)
-                    </Label>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Interview Tips */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Interview Tips</CardTitle>
-                <CardDescription>General tips for interviewing at this company</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {formData.interviewTips.map((tip, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={tip}
-                      onChange={(e) => updateInterviewTip(index, e.target.value)}
-                      placeholder="Enter an interview tip..."
-                    />
-                    {formData.interviewTips.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeInterviewTip(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addInterviewTip}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Tip
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Requirements */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Job Requirements</CardTitle>
-                <CardDescription>Specify the requirements for candidates</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {formData.requirements.map((req, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={req}
-                      onChange={(e) => updateRequirement(index, e.target.value)}
-                      placeholder="e.g., 3+ years of React experience"
-                    />
-                    {formData.requirements.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeRequirement(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addRequirement}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Requirement
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Tech Stack */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Tech Stack</CardTitle>
-                <CardDescription>Technologies used at this company</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Add Technology</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newTech}
-                      onChange={(e) => setNewTech(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          addTech()
-                        }
-                      }}
-                      placeholder="e.g., React, Node.js, MongoDB"
-                    />
-                    <Button type="button" onClick={addTech}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {formData.techStack.length > 0 && (
-                  <div>
-                    <Label>Added Technologies ({formData.techStack.length})</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.techStack.map((tech, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md text-sm"
-                        >
-                          <span>{tech}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeTech(index)}
-                            className="hover:text-destructive"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                  <Label className="mb-2 block">Benefits & Perks</Label>
+                  {formData.benefits.map((b, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <Input value={b} onChange={e => handleArrayChange('benefits', i, e.target.value)} placeholder="e.g. Health Insurance" />
+                      <Button variant="ghost" size="icon" onClick={() => removeArrayItem('benefits', i)}><X className="h-4 w-4"/></Button>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Benefits */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Benefits & Perks</CardTitle>
-                <CardDescription>What benefits does the company offer?</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {formData.benefits.map((benefit, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={benefit}
-                      onChange={(e) => updateBenefit(index, e.target.value)}
-                      placeholder="e.g., Health Insurance, Remote Work"
-                    />
-                    {formData.benefits.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBenefit(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addBenefit}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Benefit
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Eligibility Criteria */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Eligibility Criteria</CardTitle>
-                <CardDescription>Define minimum requirements for applicants</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="minCGPA">Minimum CGPA</Label>
-                    <Input
-                      id="minCGPA"
-                      type="number"
-                      step="0.01"
-                      value={formData.eligibilityCriteria.minCGPA || ''}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        eligibilityCriteria: {
-                          ...prev.eligibilityCriteria,
-                          minCGPA: parseFloat(e.target.value) || null
-                        }
-                      }))}
-                      placeholder="e.g., 7.0"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="minPercentage">Minimum Percentage</Label>
-                    <Input
-                      id="minPercentage"
-                      type="number"
-                      value={formData.eligibilityCriteria.minPercentage || ''}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        eligibilityCriteria: {
-                          ...prev.eligibilityCriteria,
-                          minPercentage: parseFloat(e.target.value) || null
-                        }
-                      }))}
-                      placeholder="e.g., 70"
-                    />
-                  </div>
+                  ))}
+                  <Button size="sm" variant="outline" onClick={() => addArrayItem('benefits')}><Plus className="h-4 w-4 mr-2"/> Add Benefit</Button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="educationLevel">Education Level</Label>
-                    <select
-                      id="educationLevel"
-                      value={formData.eligibilityCriteria.educationLevel}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        eligibilityCriteria: {
-                          ...prev.eligibilityCriteria,
-                          educationLevel: e.target.value
-                        }
-                      }))}
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                <div>
+                  <Label className="mb-2 block">Interview Tips</Label>
+                  {formData.interviewTips.map((tip, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <Input value={tip} onChange={e => handleArrayChange('interviewTips', i, e.target.value)} placeholder="e.g. Focus on DS" />
+                      <Button variant="ghost" size="icon" onClick={() => removeArrayItem('interviewTips', i)}><X className="h-4 w-4"/></Button>
+                    </div>
+                  ))}
+                  <Button size="sm" variant="outline" onClick={() => addArrayItem('interviewTips')}><Plus className="h-4 w-4 mr-2"/> Add Tip</Button>
+                </div>
+             </CardContent>
+          </Card>
+
+          {/* 1.4 Details (Locations) */}
+          <Card>
+            <CardHeader><CardTitle>Locations</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                {formData.locations.map((loc, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input value={loc} onChange={e => handleArrayChange('locations', i, e.target.value)} placeholder="e.g. Bangalore" />
+                    <Button variant="ghost" size="icon" onClick={() => removeArrayItem('locations', i)}><X className="h-4 w-4"/></Button>
+                  </div>
+                ))}
+                <Button size="sm" variant="outline" onClick={() => addArrayItem('locations')}><Plus className="h-4 w-4 mr-2"/> Add Location</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button onClick={() => setStep(2)}>Next: Roles <ChevronRight className="ml-2 h-4 w-4"/></Button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: ROLES */}
+      {step === 2 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+           <div className="flex justify-between items-center">
+             <h2 className="text-xl font-semibold">Job Roles</h2>
+             <Button onClick={addRole}><Plus className="mr-2 h-4 w-4"/> Add New Role</Button>
+           </div>
+
+           {rolesData.length === 0 ? (
+             <div className="text-center py-12 border-2 border-dashed rounded-lg text-muted-foreground">
+               No job roles added. Click "Add New Role" to get started.
+             </div>
+           ) : (
+             <div className="flex gap-6 items-start">
+                {/* Role Sidebar */}
+                <div className="w-1/4 space-y-2">
+                  {rolesData.map((role, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => setActiveRoleIndex(idx)}
+                      className={`p-3 rounded-lg border cursor-pointer hover:bg-muted transition-colors ${activeRoleIndex === idx ? 'bg-secondary border-primary' : 'bg-card'}`}
                     >
-                      <option value="">Select Education</option>
-                      <option value="B.Tech">B.Tech</option>
-                      <option value="M.Tech">M.Tech</option>
-                      <option value="BCA">BCA</option>
-                      <option value="MCA">MCA</option>
-                      <option value="B.Sc">B.Sc</option>
-                      <option value="M.Sc">M.Sc</option>
-                      <option value="Any Graduate">Any Graduate</option>
-                      <option value="Any Post Graduate">Any Post Graduate</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="maxBacklogs">Maximum Backlogs</Label>
-                    <Input
-                      id="maxBacklogs"
-                      type="number"
-                      value={formData.eligibilityCriteria.maxBacklogs || ''}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        eligibilityCriteria: {
-                          ...prev.eligibilityCriteria,
-                          maxBacklogs: parseInt(e.target.value) || null
-                        }
-                      }))}
-                      placeholder="e.g., 0"
-                    />
-                  </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium truncate">{role.roleName || 'Untitled Role'}</span>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); removeRole(idx) }}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                <div>
-                  <Label htmlFor="ageLimit">Age Limit</Label>
-                  <Input
-                    id="ageLimit"
-                    type="number"
-                    value={formData.eligibilityCriteria.ageLimit || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      eligibilityCriteria: {
-                        ...prev.eligibilityCriteria,
-                        ageLimit: parseInt(e.target.value) || null
-                      }
-                    }))}
-                    placeholder="e.g., 28"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Hiring Pipeline */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Hiring Pipeline</CardTitle>
-                <CardDescription>Define the interview rounds</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {hiringPipeline.map((round, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">Round {index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeHiringRound(index)}
-                      >
-                        <X className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Round Name</Label>
-                        <Input
-                          value={round.roundName}
-                          onChange={(e) => updateHiringRound(index, 'roundName', e.target.value)}
-                          placeholder="Technical Round 1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Round Type</Label>
-                        <select
-                          value={round.roundType}
-                          onChange={(e) => updateHiringRound(index, 'roundType', e.target.value)}
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                        >
-                          {ROUND_TYPES.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Duration</Label>
-                        <Input
-                          value={round.duration}
-                          onChange={(e) => updateHiringRound(index, 'duration', e.target.value)}
-                          placeholder="60 min"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Minimum Score</Label>
-                        <Input
-                          type="number"
-                          value={round.passingCriteria.minimumScore}
-                          onChange={(e) => updateHiringRound(index, 'passingCriteria.minimumScore', parseInt(e.target.value))}
-                          placeholder="70"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Description</Label>
-                      <Textarea
-                        value={round.description}
-                        onChange={(e) => updateHiringRound(index, 'description', e.target.value)}
-                        placeholder="Describe this round..."
-                        rows={2}
+                {/* Role Editor */}
+                <Card className="flex-1">
+                  <CardHeader>
+                    <CardTitle>Edit Role: {rolesData[activeRoleIndex]?.roleName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>Role Name</Label>
+                      <Input 
+                        value={rolesData[activeRoleIndex].roleName} 
+                        onChange={e => updateRole(activeRoleIndex, 'roleName', e.target.value)} 
+                        placeholder="e.g. Frontend Developer"
                       />
                     </div>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" onClick={addHiringRound}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Round
-                </Button>
-              </CardContent>
-            </Card>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea 
+                        value={rolesData[activeRoleIndex].description} 
+                        onChange={e => updateRole(activeRoleIndex, 'description', e.target.value)} 
+                      />
+                    </div>
 
-            <div className="flex justify-end">
-              <Button type="button" onClick={nextStep}>
-                Next Step
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </>
-        )}
-
-        {/* Step 2: Problems & Questions */}
-        {currentStep === 2 && (
-          <>
-            {/* Linked DSA Problems */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Linked DSA Problems</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Search DSA Problems</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      className="pl-10"
-                      placeholder="Search by title or problem number..."
-                      value={dsaSearch}
-                      onChange={(e) => searchDSAProblems(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {dsaSearchResults.length > 0 && (
-                  <div className="max-h-60 overflow-y-auto border rounded p-2 space-y-1">
-                    {dsaSearchResults.map(problem => (
-                      <div
-                        key={problem._id}
-                        className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                        onClick={() => toggleDSAProblem(problem)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedDSA.some(p => p.problemId === problem._id)}
-                          onChange={() => toggleDSAProblem(problem)}
-                          className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-                        />
-                        <span className="text-xs font-mono bg-primary/10 px-2 py-0.5 rounded">
-                          #{problem.problemNumber}
-                        </span>
-                        <span className="flex-1">{problem.title}</span>
-                        <span className="text-xs text-muted-foreground">{problem.difficulty}</span>
+                    {/* Hiring Pipeline Block */}
+                    <div className="border-t pt-4">
+                      <h3 className="font-semibold mb-3 flex justify-between items-center">
+                        Hiring Pipeline
+                        <Button size="sm" variant="outline" onClick={() => addRound(activeRoleIndex)}><Plus className="h-3 w-3 mr-1"/> Add Round</Button>
+                      </h3>
+                      <div className="space-y-3">
+                        {rolesData[activeRoleIndex].hiringPipeline.map((round: any, rIdx: number) => (
+                           <Card key={rIdx} className="bg-muted/40">
+                             <CardContent className="p-3 grid grid-cols-2 gap-3">
+                                <div className="col-span-2 flex justify-between">
+                                  <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded">Round {round.roundNumber}</span>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRound(activeRoleIndex, rIdx)}><X className="h-3 w-3"/></Button>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Round Name</Label>
+                                  <Input className="h-8" value={round.roundName} onChange={e => updateRound(activeRoleIndex, rIdx, 'roundName', e.target.value)} />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Type</Label>
+                                  <select 
+                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                    value={round.roundType}
+                                    onChange={e => updateRound(activeRoleIndex, rIdx, 'roundType', e.target.value)}
+                                  >
+                                    {ROUND_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                  </select>
+                                </div>
+                                <div className="col-span-2">
+                                  <Label className="text-xs">Description</Label>
+                                  <Textarea className="h-16" value={round.description} onChange={e => updateRound(activeRoleIndex, rIdx, 'description', e.target.value)} />
+                                </div>
+                             </CardContent>
+                           </Card>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
 
-                <div>
-                  <Label>Selected Problems ({selectedDSA.length})</Label>
-                  {selectedDSA.map((item, index) => (
-                    <div key={item.problemId || index} className="border rounded p-3 mt-2">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <span className="text-xs font-mono text-muted-foreground">#{item.problemNumber}</span>
-                          <span className="font-medium ml-2">{item.title}</span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeDSAProblem(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                    {/* Interview Questions Block */}
+                    <div className="border-t pt-4">
+                      <h3 className="font-semibold mb-3 flex justify-between items-center">
+                        Interview Questions
+                        <Button size="sm" variant="outline" onClick={() => addQuestion(activeRoleIndex)}><Plus className="h-3 w-3 mr-1"/> Add Question</Button>
+                      </h3>
+                      <div className="space-y-3">
+                        {rolesData[activeRoleIndex].interviewQuestions.map((q: any, qIdx: number) => (
+                           <div key={qIdx} className="border p-3 rounded-md bg-card">
+                              <div className="flex gap-3 mb-2">
+                                <Textarea 
+                                  className="flex-1" 
+                                  placeholder="Question text..." 
+                                  value={q.question} 
+                                  onChange={e => updateQuestion(activeRoleIndex, qIdx, 'question', e.target.value)}
+                                />
+                                <Button variant="ghost" size="icon" onClick={() => removeQuestion(activeRoleIndex, qIdx)}><X className="h-4 w-4"/></Button>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                 <select 
+                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                    value={q.type}
+                                    onChange={e => updateQuestion(activeRoleIndex, qIdx, 'type', e.target.value)}
+                                 >
+                                    {QUESTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                 </select>
+                                 <select 
+                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                    value={q.difficulty}
+                                    onChange={e => updateQuestion(activeRoleIndex, qIdx, 'difficulty', e.target.value)}
+                                 >
+                                    {['Easy', 'Medium', 'Hard'].map(d => <option key={d} value={d}>{d}</option>)}
+                                 </select>
+                                 <select 
+                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                    value={q.roundNumber || ''}
+                                    onChange={e => updateQuestion(activeRoleIndex, qIdx, 'roundNumber', Number(e.target.value))}
+                                 >
+                                    <option value="">No Associated Round</option>
+                                    {rolesData[activeRoleIndex].hiringPipeline.map((r: any) => (
+                                      <option key={r.roundNumber} value={r.roundNumber}>Round {r.roundNumber}: {r.roundName}</option>
+                                    ))}
+                                 </select>
+                              </div>
+                           </div>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">Frequency</Label>
-                          <select
-                            value={item.frequency}
-                            onChange={(e) => updateDSAField(index, 'frequency', e.target.value)}
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          >
-                            <option value="Very High">Very High</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                          </select>
+                    </div>
+
+                    {/* Linked Problems Block */}
+                    <div className="border-t pt-4">
+                      <h3 className="font-semibold mb-3">Linked Problems (DSA & Dev)</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* DSA PROBLEMS */}
+                        <div className="border rounded-md p-3">
+                           <h4 className="font-medium mb-2 text-sm">DSA Problems</h4>
+                           <div className="flex gap-2 mb-2">
+                             <Input 
+                               placeholder="Search DSA..." 
+                               value={dsaSearch}
+                               onChange={(e) => setDsaSearch(e.target.value)}
+                               className="h-8 text-sm"
+                             />
+                             <Button size="sm" onClick={searchDSA} disabled={loadingSearch} variant="secondary">
+                               {loadingSearch ? '...' : 'Search'}
+                             </Button>
+                           </div>
+                           
+                           {/* Search Results */}
+                           {dsaSearchResults.length > 0 && (
+                             <div className="mb-3 max-h-40 overflow-y-auto border rounded bg-background p-2">
+                               <p className="text-xs text-muted-foreground mb-1">Search Results:</p>
+                               {dsaSearchResults.map((prob) => (
+                                 <div key={prob._id} className="flex justify-between items-center text-sm p-1 hover:bg-muted cursor-pointer group">
+                                    <span className="truncate flex-1">{prob.title}</span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => addProblemToRole(activeRoleIndex, 'linkedDSAProblems', prob)}>
+                                      <Plus className="h-3 w-3"/>
+                                    </Button>
+                                 </div>
+                               ))}
+                             </div>
+                           )}
+
+                           {/* Linked List */}
+                           <div className="space-y-2 mt-2">
+                             {rolesData[activeRoleIndex].linkedDSAProblems.map((link, lIdx) => (
+                               <div key={lIdx} className="bg-muted/30 p-2 rounded text-sm border">
+                                  <div className="flex justify-between font-medium">
+                                    <span>{link.title || 'Unknown Problem'}</span>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeProblemFromRole(activeRoleIndex, 'linkedDSAProblems', lIdx)}>
+                                      <X className="h-3 w-3"/>
+                                    </Button>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 mt-2">
+                                     <select 
+                                        className="h-7 w-full rounded border bg-background px-1 text-xs"
+                                        value={link.roundNumber || ''}
+                                        onChange={(e) => updateProblemInRole(activeRoleIndex, 'linkedDSAProblems', lIdx, 'roundNumber', Number(e.target.value))}
+                                     >
+                                        <option value="">Select Round</option>
+                                        {rolesData[activeRoleIndex].hiringPipeline.map((r: any) => (
+                                          <option key={r.roundNumber} value={r.roundNumber}>Round {r.roundNumber}</option>
+                                        ))}
+                                     </select>
+                                     <select 
+                                        className="h-7 w-full rounded border bg-background px-1 text-xs"
+                                        value={link.frequency}
+                                        onChange={(e) => updateProblemInRole(activeRoleIndex, 'linkedDSAProblems', lIdx, 'frequency', e.target.value)}
+                                     >
+                                        {FREQUENCY_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                                     </select>
+                                  </div>
+                               </div>
+                             ))}
+                             {rolesData[activeRoleIndex].linkedDSAProblems.length === 0 && (
+                               <p className="text-xs text-muted-foreground text-center py-2">No problems linked</p>
+                             )}
+                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs">Role</Label>
-                          <select
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            value={item.round || ''}
-                            onChange={(e) => updateDSAField(index, 'round', e.target.value)}
-                          >
-                            <option value="">Select Role</option>
-                            {formData.roles.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </select>
+
+                        {/* DEV PROBLEMS */}
+                        <div className="border rounded-md p-3">
+                           <h4 className="font-medium mb-2 text-sm">Development Problems</h4>
+                           <div className="flex gap-2 mb-2">
+                             <Input 
+                               placeholder="Search Dev..." 
+                               value={devSearch}
+                               onChange={(e) => setDevSearch(e.target.value)}
+                               className="h-8 text-sm"
+                             />
+                             <Button size="sm" onClick={searchDev} disabled={loadingSearch} variant="secondary">
+                               {loadingSearch ? '...' : 'Search'}
+                             </Button>
+                           </div>
+
+                           {/* Search Results */}
+                           {devSearchResults.length > 0 && (
+                             <div className="mb-3 max-h-40 overflow-y-auto border rounded bg-background p-2">
+                               <p className="text-xs text-muted-foreground mb-1">Search Results:</p>
+                               {devSearchResults.map((prob) => (
+                                 <div key={prob._id} className="flex justify-between items-center text-sm p-1 hover:bg-muted cursor-pointer group">
+                                    <span className="truncate flex-1">{prob.title}</span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => addProblemToRole(activeRoleIndex, 'linkedDevProblems', prob)}>
+                                      <Plus className="h-3 w-3"/>
+                                    </Button>
+                                 </div>
+                               ))}
+                             </div>
+                           )}
+
+                           {/* Linked List */}
+                           <div className="space-y-2 mt-2">
+                             {rolesData[activeRoleIndex].linkedDevProblems.map((link, lIdx) => (
+                               <div key={lIdx} className="bg-muted/30 p-2 rounded text-sm border">
+                                  <div className="flex justify-between font-medium">
+                                    <span>{link.title || 'Unknown Problem'}</span>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeProblemFromRole(activeRoleIndex, 'linkedDevProblems', lIdx)}>
+                                      <X className="h-3 w-3"/>
+                                    </Button>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 mt-2">
+                                     <select 
+                                        className="h-7 w-full rounded border bg-background px-1 text-xs"
+                                        value={link.roundNumber || ''}
+                                        onChange={(e) => updateProblemInRole(activeRoleIndex, 'linkedDevProblems', lIdx, 'roundNumber', Number(e.target.value))}
+                                     >
+                                        <option value="">Select Round</option>
+                                        {rolesData[activeRoleIndex].hiringPipeline.map((r: any) => (
+                                          <option key={r.roundNumber} value={r.roundNumber}>Round {r.roundNumber}</option>
+                                        ))}
+                                     </select>
+                                     <select 
+                                        className="h-7 w-full rounded border bg-background px-1 text-xs"
+                                        value={link.frequency}
+                                        onChange={(e) => updateProblemInRole(activeRoleIndex, 'linkedDevProblems', lIdx, 'frequency', e.target.value)}
+                                     >
+                                        {FREQUENCY_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                                     </select>
+                                  </div>
+                               </div>
+                             ))}
+                             {rolesData[activeRoleIndex].linkedDevProblems.length === 0 && (
+                               <p className="text-xs text-muted-foreground text-center py-2">No problems linked</p>
+                             )}
+                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Linked Dev Problems */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Linked Development Problems</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Search Development Problems</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      className="pl-10"
-                      placeholder="Search by title..."
-                      value={devSearch}
-                      onChange={(e) => searchDevProblems(e.target.value)}
-                    />
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
+             </div>
+           )}
 
-                {devSearchResults.length > 0 && (
-                  <div className="max-h-60 overflow-y-auto border rounded p-2 space-y-1">
-                    {devSearchResults.map(problem => (
-                      <div
-                        key={problem._id}
-                        className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                        onClick={() => toggleDevProblem(problem)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedDev.some(p => p.problemId === problem._id)}
-                          onChange={() => toggleDevProblem(problem)}
-                          className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-                        />
-                        <span className="flex-1">{problem.title}</span>
-                        <span className="text-xs text-muted-foreground">{problem.difficulty}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+           <div className="flex justify-between pt-4 border-t">
+              <Button variant="outline" onClick={() => setStep(1)}><ChevronLeft className="mr-2 h-4 w-4"/> Basic Info</Button>
+              <Button onClick={() => setStep(3)}>Next: Patterns <ChevronRight className="ml-2 h-4 w-4"/></Button>
+           </div>
+        </div>
+      )}
 
-                <div>
-                  <Label>Selected Problems ({selectedDev.length})</Label>
-                  {selectedDev.map((item, index) => (
-                    <div key={item.problemId || index} className="border rounded p-3 mt-2">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium">{item.title}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeDevProblem(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">Frequency</Label>
-                          <select
-                            value={item.frequency}
-                            onChange={(e) => updateDevField(index, 'frequency', e.target.value)}
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      {/* STEP 3: PATTERNS */}
+      {step === 3 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+           <div className="flex justify-between items-center">
+             <h2 className="text-xl font-semibold">Common Interview Patterns</h2>
+             <Button onClick={addPattern}><Plus className="mr-2 h-4 w-4"/> Add Pattern</Button>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             {patterns.map((pattern, idx) => (
+               <Card key={idx}>
+                 <CardHeader className="py-3 bg-muted/20 flex flex-row justify-between items-center space-y-0">
+                    <span className="font-semibold">Pattern #{idx+1}</span>
+                    <Button variant="ghost" size="icon" onClick={() => removePattern(idx)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                 </CardHeader>
+                 <CardContent className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                       <div className="space-y-1">
+                          <Label className="text-xs">Name</Label>
+                          <Input value={pattern.name} onChange={e => updatePattern(idx, 'name', e.target.value)} placeholder="e.g. Slidng Window" />
+                       </div>
+                       <div className="space-y-1">
+                          <Label className="text-xs">Category</Label>
+                          <select 
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                            value={pattern.category}
+                            onChange={e => updatePattern(idx, 'category', e.target.value)}
                           >
-                            <option value="Very High">Very High</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
+                             {PATTERN_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Role</Label>
-                          <select
-                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            value={item.round || ''}
-                            onChange={(e) => updateDevField(index, 'round', e.target.value)}
-                          >
-                            <option value="">Select Role</option>
-                            {formData.roles.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Interview Questions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Interview Questions (PYQs)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {interviewQuestions.map((q, index) => (
-                  <div key={index} className="border rounded p-4">
-                    <div className="flex justify-between mb-2">
-                      <Label>Question {index + 1}</Label>
-                      {interviewQuestions.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeQuestion(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
+                    <div className="space-y-1">
+                       <Label className="text-xs">Description</Label>
+                       <Textarea className="h-20" value={pattern.description} onChange={e => updatePattern(idx, 'description', e.target.value)} />
                     </div>
-
-                    <Textarea
-                      placeholder="Enter the interview question..."
-                      value={q.question}
-                      onChange={(e) => updateQuestion(index, 'question', e.target.value)}
-                      rows={3}
-                      className="mb-2"
-                    />
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs">Type</Label>
-                        <select
-                          value={q.type}
-                          onChange={(e) => updateQuestion(index, 'type', e.target.value)}
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                          <option value="Technical">Technical</option>
-                          <option value="Behavioral">Behavioral</option>
-                          <option value="HR">HR</option>
-                          <option value="System Design">System Design</option>
-                          <option value="Aptitude">Aptitude</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs">Difficulty</Label>
-                        <select
-                          value={q.difficulty}
-                          onChange={(e) => updateQuestion(index, 'difficulty', e.target.value)}
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                          <option value="Easy">Easy</option>
-                          <option value="Medium">Medium</option>
-                          <option value="Hard">Hard</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs">Role</Label>
-                        <select
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          value={q.round || ''}
-                          onChange={(e) => updateQuestion(index, 'round', e.target.value)}
-                        >
-                          <option value="">Select Role</option>
-                          {formData.roles.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="space-y-1">
+                       <Label className="text-xs">Examples</Label>
+                       {pattern.examples.map((ex: string, i: number) => (
+                         <div key={i} className="flex gap-1 mb-1">
+                           <Input className="h-7 text-xs" value={ex} onChange={e => updatePatternArray(idx, 'examples', i, e.target.value)} />
+                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removePatternArrayItem(idx, 'examples', i)}><X className="h-3 w-3"/></Button>
+                         </div>
+                       ))}
+                       <Button size="sm" variant="outline" className="h-6 text-xs w-full" onClick={() => addPatternArrayItem(idx, 'examples')}><Plus className="h-3 w-3 mr-1"/> Add Example</Button>
                     </div>
-                  </div>
-                ))}
+                 </CardContent>
+               </Card>
+             ))}
+           </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addQuestion}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Question
-                </Button>
-              </CardContent>
-            </Card>
+           <div className="flex justify-between pt-4 border-t sticky bottom-0 bg-background p-4 border-t shadow-up">
+              <Button variant="outline" onClick={() => setStep(2)}><ChevronLeft className="mr-2 h-4 w-4"/> Roles</Button>
+              <Button size="lg" onClick={handleSubmit} disabled={loading} className="min-w-[200px]">
+                 {loading ? 'Creating...' : (
+                   <>
+                     <Save className="mr-2 h-4 w-4" /> Create Company
+                   </>
+                 )}
+              </Button>
+           </div>
+        </div>
+      )}
 
-            <div className="flex gap-4">
-              <Button type="button" variant="outline" onClick={prevStep}>
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Previous Step
-              </Button>
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? 'Creating...' : 'Create Company'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/admin/companies')}
-              >
-                Cancel
-              </Button>
-            </div>
-          </>
-        )}
-      </form>
     </div>
   )
 }
