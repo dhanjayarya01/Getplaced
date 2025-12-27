@@ -9,7 +9,7 @@ import { CTASection } from "@/components/landing/cta-section"
 
 export default function HomePage() {
 
-  // landing page 
+  
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
