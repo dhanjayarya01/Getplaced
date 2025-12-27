@@ -27,20 +27,31 @@ export function CompanyInterviewSelectPage({ companyId }: CompanyInterviewSelect
   const [progress, setProgress] = useState<any>(null)
 
   useEffect(() => {
-    loadData()
-  }, [companyId, selectedRoleIndex])
+    loadCompany()
+  }, [companyId])
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (company) {
+      loadProgress()
+    }
+  }, [selectedRoleIndex, company])
+
+  const loadCompany = async () => {
     try {
       setLoading(true)
-
-      // Fetch company
       const companyRes = await apiService.companies.getById(companyId)
       if (companyRes.success) {
         setCompany(companyRes.data)
       }
+    } catch (error) {
+      console.error('Error loading company:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-      // Fetch user's progress
+  const loadProgress = async () => {
+    try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
       const progressRes = await fetch(
         `${apiUrl}/api/companies/${companyId}/interview/progress?roleIndex=${selectedRoleIndex}`,
@@ -53,11 +64,8 @@ export function CompanyInterviewSelectPage({ companyId }: CompanyInterviewSelect
       } else {
         setProgress(null)
       }
-
     } catch (error) {
-      console.error('Error loading data:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error loading progress:', error)
     }
   }
 
