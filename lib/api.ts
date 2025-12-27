@@ -326,9 +326,6 @@ class ApiService {
         },
     }
 
-    // ============================================
-    // MOCK INTERVIEW ENDPOINTS and tesing
-    // ============================================
     mockInterviews = {
         getQuestions: async (params?: any) => {
             try {
