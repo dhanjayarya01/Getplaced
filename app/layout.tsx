@@ -4,6 +4,7 @@ import { Inter, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { SignInModal } from "@/components/SignInModal"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const _inter = Inter({ subsets: ["latin"] })
@@ -22,12 +23,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased dark`}>
-        <AuthProvider>
-          {children}
-          <SignInModal />
-          <Analytics />
-        </AuthProvider>
+      <body className="font-sans antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
+          <AuthProvider>
+            {children}
+            <SignInModal />
+            <Analytics />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

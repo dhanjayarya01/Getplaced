@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, Zap, LogOut, User } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { ThemeToggle } from "@/components/theme-toggle"
 import Image from "next/image"
 
 const navLinks = [
@@ -58,6 +59,7 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle />
             {loading ? (
               <div className="h-9 w-24 bg-secondary animate-pulse rounded-lg" />
             ) : isAuthenticated && user ? (
@@ -130,7 +132,13 @@ export function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <div className="pt-4 flex flex-col gap-2">
+            <div className="pt-4 border-t border-border">
+              <div className="py-3 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
               {loading ? (
                 <div className="h-10 bg-secondary animate-pulse rounded-lg" />
               ) : isAuthenticated && user ? (
