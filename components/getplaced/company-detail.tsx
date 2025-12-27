@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 interface CompanyDetailProps {
   companyId: string
@@ -24,6 +25,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedRoleIndex, setSelectedRoleIndex] = useState(0)
+  const [openSheet, setOpenSheet] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCompany()
@@ -280,64 +282,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                                 </div>
                             )}
 
-                             {/* Linked DSA Problems */}
-                             {role.linkedDSAProblems && role.linkedDSAProblems.length > 0 && (
-                                 <div className="bg-card rounded-xl border border-border p-6">
-                                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                                         <Code className="w-5 h-5 text-primary" />
-                                         Frequently Asked DSA Problems
-                                     </h3>
-                                     <div className="space-y-3">
-                                         {role.linkedDSAProblems.map((item: any, idx: number) => (
-                                             <div key={idx} className="border border-border rounded-lg p-4 hover:border-primary/50 transition-all bg-card/50 hover:bg-card group">
-                                                 <div className="flex items-start justify-between gap-4">
-                                                     <div className="flex-1">
-                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            {item.problem?.problemNumber && (
-                                                                <span className="text-sm font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                                                                #{item.problem.problemNumber}
-                                                                </span>
-                                                            )}
-                                                             <h4 className="font-semibold group-hover:text-primary transition-colors">
-                                                                 {item.problem?.title || 'Unknown Problem'}
-                                                             </h4>
-                                                             {item.problem?.difficulty && (
-                                                                 <span className={`text-xs px-2 py-0.5 rounded border ${getDifficultyColor(item.problem.difficulty)}`}>
-                                                                     {item.problem.difficulty}
-                                                                 </span>
-                                                             )}
-                                                         </div>
-                                                          <div className="flex items-center gap-3 mt-3 text-sm">
-                                                              {item.frequency && (
-                                                                  <span className={`text-xs px-2 py-0.5 rounded border ${getFrequencyColor(item.frequency)}`}>
-                                                                    {item.frequency} Freq
-                                                                  </span>
-                                                              )}
-                                                              {item.roundNumber && (
-                                                                  <span className="text-muted-foreground flex items-center gap-1">
-                                                                      <Target className="w-3 h-3" /> Round {item.roundNumber}
-                                                                  </span>
-                                                              )}
-                                                          </div>
-                                                          {item.notes && (
-                                                              <p className="text-sm text-muted-foreground mt-2 italic bg-muted/30 p-2 rounded border-l-2 border-primary/50">
-                                                                💡 {item.notes}
-                                                              </p>
-                                                          )}
-                                                     </div>
-                                                      {item.problem?._id && (
-                                                        <Link href={`/dsa/${item.problem._id}`}>
-                                                        <Button size="sm" variant="outline" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            Solve <ArrowRight className="w-4 h-4 ml-2" />
-                                                        </Button>
-                                                        </Link>
-                                                    )}
-                                                 </div>
-                                             </div>
-                                         ))}
-                                     </div>
-                                 </div>
-                             )}
+                             {/* DSA Problems Section - Hidden as per user request */}
 
                              {/* Linked Dev Problems */}
                              {role.linkedDevProblems && role.linkedDevProblems.length > 0 && (
@@ -433,8 +378,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         )}
 
       {/* Common Company Sections */}
-      <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+      <div className="space-y-8">
               {/* Requirements */}
               {company.requirements && company.requirements.length > 0 && (
                   <div className="bg-card rounded-xl border border-border p-6">
@@ -453,148 +397,209 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                   </div>
               )}
 
-              {/* Interview Patterns (Company Wide) */}
-               {company.patterns && company.patterns.length > 0 && (
-                  <div className="bg-card rounded-xl border border-border p-6">
-                      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              {/* Trigger Cards for Modal Sections */}
+              <div className="grid md:grid-cols-3 gap-4">
+                {/* Recruitment Patterns Card */}
+                {company.patterns && company.patterns.length > 0 && (
+                  <Sheet open={openSheet === 'patterns'} onOpenChange={(open) => setOpenSheet(open ? 'patterns' : null)}>
+                    <SheetTrigger asChild>
+                      <Card className="cursor-pointer hover:border-primary/50 transition-all group">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <TrendingUp className="w-8 h-8 text-primary" />
+                            <Badge variant="secondary">{company.patterns.length}</Badge>
+                          </div>
+                          <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors">Recruitment Patterns</h3>
+                          <p className="text-sm text-muted-foreground">View interview patterns and strategies</p>
+                          <ArrowRight className="w-4 h-4 mt-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </CardContent>
+                      </Card>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle className="flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-primary" />
                           Recruitment Patterns
-                      </h2>
-                      <div className="space-y-4">
-                          {company.patterns.map((pattern: any, idx: number) => (
-                              <div key={idx} className="border border-border rounded-lg p-4 bg-gradient-to-br from-card to-secondary/30">
-                                  <div className="flex justify-between items-start mb-2">
-                                      <h3 className="font-semibold text-lg">{pattern.name}</h3>
-                                       <span className={`text-xs px-2 py-1 rounded border ${getFrequencyColor(pattern.frequency)}`}>
-                                            {pattern.frequency}
-                                        </span>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground mb-3">{pattern.description}</p>
-                                  {pattern.examples && pattern.examples.length > 0 && (
-                                      <div className="flex flex-wrap gap-2">
-                                          {pattern.examples.map((ex: string, i: number) => (
-                                              <Badge key={i} variant="outline" className="bg-background">{ex}</Badge>
-                                          ))}
-                                      </div>
-                                  )}
+                        </SheetTitle>
+                      </SheetHeader>
+                      <div className="space-y-4 mt-6">
+                        {company.patterns.map((pattern: any, idx: number) => (
+                          <div key={idx} className="border border-border rounded-lg p-4 bg-gradient-to-br from-card to-secondary/30">
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-semibold text-lg">{pattern.name}</h3>
+                              <span className={`text-xs px-2 py-1 rounded border ${getFrequencyColor(pattern.frequency)}`}>
+                                {pattern.frequency}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-3">{pattern.description}</p>
+                            {pattern.examples && pattern.examples.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {pattern.examples.map((ex: string, i: number) => (
+                                  <Badge key={i} variant="outline" className="bg-background">{ex}</Badge>
+                                ))}
                               </div>
-                          ))}
-                      </div>
-                  </div>
-              )}
-
-              {/* Tips */}
-               {company.interviewTips && company.interviewTips.length > 0 && (
-                  <div className="bg-card rounded-xl border border-border p-6">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                      <Star className="w-5 h-5 text-primary" />
-                      Insider Interview Tips
-                  </h2>
-                  <ul className="space-y-3">
-                      {company.interviewTips.map((tip: string, index: number) => (
-                      <li key={index} className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-full bg-yellow-500/10 text-yellow-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <Star className="w-3 h-3 fill-current" />
+                            )}
                           </div>
-                          <span className="text-sm">{tip}</span>
-                      </li>
-                      ))}
-                  </ul>
-                  </div>
-              )}
-          </div>
-
-          <div className="space-y-8">
-               {/* Eligibility */}
-              {company.eligibilityCriteria && Object.values(company.eligibilityCriteria).some(v => v) && (
-                  <div className="bg-card rounded-xl border border-border p-6">
-                      <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                          <GraduationCap className="w-4 h-4 text-primary" />
-                          Eligibility
-                      </h2>
-                      <div className="space-y-4">
-                           {company.eligibilityCriteria.minCGPA && (
-                              <div className="flex justify-between items-center border-b border-border/50 pb-2">
-                                  <span className="text-sm text-muted-foreground">Min CGPA</span>
-                                  <span className="font-semibold">{company.eligibilityCriteria.minCGPA}</span>
-                              </div>
-                            )}
-                            {company.eligibilityCriteria.minPercentage && (
-                              <div className="flex justify-between items-center border-b border-border/50 pb-2">
-                                  <span className="text-sm text-muted-foreground">Min Percentage</span>
-                                  <span className="font-semibold">{company.eligibilityCriteria.minPercentage}%</span>
-                              </div>
-                            )}
-                            {company.eligibilityCriteria.educationLevel && (
-                              <div className="flex justify-between items-center border-b border-border/50 pb-2">
-                                  <span className="text-sm text-muted-foreground">Degree</span>
-                                  <span className="font-semibold">{company.eligibilityCriteria.educationLevel}</span>
-                              </div>
-                            )}
-                            {company.eligibilityCriteria.allowedBranches && company.eligibilityCriteria.allowedBranches.length > 0 && (
-                               <div className="pt-1">
-                                  <span className="text-sm text-muted-foreground block mb-2">Allowed Branches</span>
-                                  <div className="flex flex-wrap gap-1">
-                                      {company.eligibilityCriteria.allowedBranches.map((b: string) => (
-                                          <Badge key={b} variant="secondary" className="text-xs">{b}</Badge>
-                                      ))}
-                                  </div>
-                              </div>
-                            )}
-                             {company.eligibilityCriteria.yearOfPassing && company.eligibilityCriteria.yearOfPassing.length > 0 && (
-                               <div className="pt-2">
-                                  <span className="text-sm text-muted-foreground block mb-2">Batch</span>
-                                  <div className="flex flex-wrap gap-1">
-                                      {company.eligibilityCriteria.yearOfPassing.map((b: number) => (
-                                          <Badge key={b} variant="outline" className="text-xs">{b}</Badge>
-                                      ))}
-                                  </div>
-                              </div>
-                            )}
+                        ))}
                       </div>
-                  </div>
-              )}
+                    </SheetContent>
+                  </Sheet>
+                )}
 
-              {/* Tech Stack */}
-              {company.techStack && company.techStack.length > 0 && (
-                  <div className="bg-card rounded-xl border border-border p-6">
-                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <Code className="w-4 h-4 text-primary" />
-                      Tech Stack
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                      {company.techStack.map((tech: string, index: number) => (
-                      <span
-                          key={index}
-                          className="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium border border-blue-500/20"
-                      >
-                          {tech}
-                      </span>
-                      ))}
-                  </div>
-                  </div>
-              )}
+                {/* Interview Tips Card */}
+                {company.interviewTips && company.interviewTips.length > 0 && (
+                  <Sheet open={openSheet === 'tips'} onOpenChange={(open) => setOpenSheet(open ? 'tips' : null)}>
+                    <SheetTrigger asChild>
+                      <Card className="cursor-pointer hover:border-primary/50 transition-all group">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <Star className="w-8 h-8 text-yellow-500" />
+                            <Badge variant="secondary">{company.interviewTips.length}</Badge>
+                          </div>
+                          <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors">Insider Tips</h3>
+                          <p className="text-sm text-muted-foreground">Expert advice from interviewees</p>
+                          <ArrowRight className="w-4 h-4 mt-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </CardContent>
+                      </Card>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle className="flex items-center gap-2">
+                          <Star className="w-5 h-5 text-yellow-500" />
+                          Insider Interview Tips
+                        </SheetTitle>
+                      </SheetHeader>
+                      <ul className="space-y-3 mt-6">
+                        {company.interviewTips.map((tip: string, index: number) => (
+                          <li key={index} className="flex items-start gap-3 p-3 bg-card rounded-lg border border-border">
+                            <div className="w-6 h-6 rounded-full bg-yellow-500/10 text-yellow-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Star className="w-3 h-3 fill-current" />
+                            </div>
+                            <span className="text-sm">{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </SheetContent>
+                  </Sheet>
+                )}
 
-              {/* Benefits */}
-              {company.benefits && company.benefits.length > 0 && (
-                  <div className="bg-card rounded-xl border border-border p-6">
-                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-primary" />
-                      Perks & Benefits
-                  </h2>
-                   <ul className="space-y-2">
-                      {company.benefits.map((benefit: string, index: number) => (
-                      <li key={index} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span>{benefit}</span>
-                      </li>
-                      ))}
-                  </ul>
-                  </div>
-              )}
+                {/* Benefits Card */}
+                {company.benefits && company.benefits.length > 0 && (
+                  <Sheet open={openSheet === 'benefits'} onOpenChange={(open) => setOpenSheet(open ? 'benefits' : null)}>
+                    <SheetTrigger asChild>
+                      <Card className="cursor-pointer hover:border-primary/50 transition-all group">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <Target className="w-8 h-8 text-green-500" />
+                            <Badge variant="secondary">{company.benefits.length}</Badge>
+                          </div>
+                          <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors">Perks and Benefits</h3>
+                          <p className="text-sm text-muted-foreground">Employee perks and advantages</p>
+                          <ArrowRight className="w-4 h-4 mt-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </CardContent>
+                      </Card>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle className="flex items-center gap-2">
+                          <Target className="w-5 h-5 text-green-500" />
+                          Perks and Benefits
+                        </SheetTitle>
+                      </SheetHeader>
+                      <ul className="space-y-2 mt-6">
+                        {company.benefits.map((benefit: string, index: number) => (
+                          <li key={index} className="flex items-start gap-2 text-sm p-3 bg-card rounded-lg border border-border">
+                            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span>{benefit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </SheetContent>
+                  </Sheet>
+                )}
+              </div>
 
+              {/* Eligibility and Tech Stack - Single Row Cards */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Eligibility */}
+                {company.eligibilityCriteria && Object.values(company.eligibilityCriteria).some(v => v) && (
+                  <Card className="bg-card border border-border">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <GraduationCap className="w-5 h-5 text-primary" />
+                        Eligibility Criteria
+                      </h3>
+                      <div className="space-y-3">
+                        {company.eligibilityCriteria.minCGPA && (
+                          <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                            <span className="text-sm text-muted-foreground">Min CGPA</span>
+                            <span className="font-semibold">{company.eligibilityCriteria.minCGPA}</span>
+                          </div>
+                        )}
+                        {company.eligibilityCriteria.minPercentage && (
+                          <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                            <span className="text-sm text-muted-foreground">Min Percentage</span>
+                            <span className="font-semibold">{company.eligibilityCriteria.minPercentage}%</span>
+                          </div>
+                        )}
+                        {company.eligibilityCriteria.educationLevel && (
+                          <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                            <span className="text-sm text-muted-foreground">Degree</span>
+                            <span className="font-semibold">{company.eligibilityCriteria.educationLevel}</span>
+                          </div>
+                        )}
+                        {company.eligibilityCriteria.allowedBranches && company.eligibilityCriteria.allowedBranches.length > 0 && (
+                          <div className="pt-1">
+                            <span className="text-sm text-muted-foreground block mb-2">Allowed Branches</span>
+                            <div className="flex flex-wrap gap-1">
+                              {company.eligibilityCriteria.allowedBranches.map((b: string) => (
+                                <Badge key={b} variant="secondary" className="text-xs">{b}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {company.eligibilityCriteria.yearOfPassing && company.eligibilityCriteria.yearOfPassing.length > 0 && (
+                          <div className="pt-2">
+                            <span className="text-sm text-muted-foreground block mb-2">Batch</span>
+                            <div className="flex flex-wrap gap-1">
+                              {company.eligibilityCriteria.yearOfPassing.map((b: number) => (
+                                <Badge key={b} variant="outline" className="text-xs">{b}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Tech Stack */}
+                {company.techStack && company.techStack.length > 0 && (
+                  <Card className="bg-card border border-border">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Code className="w-5 h-5 text-primary" />
+                        Tech Stack
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {company.techStack.map((tech: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-medium border border-blue-500/20"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
           </div>
+
+          {/* Sidebar Sections - Removed, consolidated into cards above */}
+
       </div>
-    </div>
+ 
   )
 }

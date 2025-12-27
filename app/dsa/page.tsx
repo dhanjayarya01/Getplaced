@@ -28,8 +28,8 @@ export default function DSAPage() {
             <aside className="lg:col-span-1">
               <DSAFilters onFilterChange={handleFilterChange} />
             </aside>
-            <div className="lg:col-span-3 space-y-8">
-              <DSARoadmap />
+            <div className="lg:col-span-3  space-y-8">
+            {/* <DSARoadmap /> */}
               <DSAProblemList filters={filters} />
             </div>
           </div>
