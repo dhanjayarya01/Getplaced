@@ -1,9 +1,14 @@
 import { Mic } from "lucide-react"
+import { ReactNode } from "react"
 
-export function InterviewHero() {
+interface InterviewHeroProps {
+  resumeButton?: ReactNode
+}
+
+export function InterviewHero({ resumeButton }: InterviewHeroProps) {
   return (
     <section className="bg-card border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
@@ -30,6 +35,13 @@ export function InterviewHero() {
             </div>
           </div>
         </div>
+        
+        {/* Resume Button - Bottom Right Corner */}
+        {resumeButton && (
+          <div className="absolute bottom-4 right-4 sm:right-6 lg:right-8">
+            {resumeButton}
+          </div>
+        )}
       </div>
     </section>
   )

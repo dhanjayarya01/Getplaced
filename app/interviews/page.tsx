@@ -11,12 +11,12 @@ export default function InterviewsPage() {
     <main className="min-h-screen bg-background">
       <Navbar />
       <div className="pt-20">
-        <InterviewHero />
+        <InterviewHero resumeButton={<ResumeModal />} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <InterviewTypes />
           <div className="grid lg:grid-cols-2 gap-8 mt-12">
             <InterviewSchedule />
-            <InterviewHistory resumeButton={<ResumeModal />} />
+            <InterviewHistory />
           </div>
         </div>
       </div>
