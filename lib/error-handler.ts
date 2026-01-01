@@ -1,5 +1,3 @@
-// Centralized Error Handler
-// Converts technical errors into user-friendly messages with proper logging
 
 import { toast } from '@/components/ui/use-toast'
 

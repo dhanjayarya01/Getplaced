@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { GetPlacedHero } from "@/components/getplaced/getplaced-hero"
@@ -8,13 +8,12 @@ import { CompanySearch } from "@/components/getplaced/company-search"
 import { CompanyList } from "@/components/getplaced/company-list"
 import { ResumeSection } from "@/components/getplaced/resume-section"
 import { CompanyFilters } from "@/components/getplaced/company-filters"
-import { apiService } from "@/lib/api"
-import { useDebounce } from "@/hooks/use-debounce" // Assuming this exists or I'll implement inline logic
+import { useDebounce } from "@/hooks/use-debounce"
+import { useCompanies } from "@/hooks/useCompanies"
 
 export default function GetPlacedPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  // Custom debounce logic if hook missing
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const debouncedSearch = useDebounce(searchQuery, 500)
 
   const [filters, setFilters] = useState({
     hiringFreshers: false,
@@ -23,62 +22,22 @@ export default function GetPlacedPage() {
     minPackage: 0
   })
 
-  const [companies, setCompanies] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Build query params
+  const queryParams: any = { 
+    limit: 50, 
+    sort: '-createdAt',
+    search: debouncedSearch || undefined
+  }
   
-  const [suggestedCompanies, setSuggestedCompanies] = useState<any[]>([])
+  if (filters.hiringFreshers) queryParams.hiringFreshers = true
+  if (filters.workMode) queryParams.workMode = filters.workMode
+  if (filters.experience > 0) queryParams.experience = filters.experience
+  if (filters.minPackage > 0) queryParams.minPackage = filters.minPackage
 
-  // Debounce Effect
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+  // Use React Query hook
+  const {data, isLoading, error, refetch} = useCompanies(queryParams)
 
-  // Fetch Companies Effect
-  useEffect(() => {
-    fetchCompanies()
-    fetchSuggested()
-  }, [debouncedSearch, filters])
-
-  const fetchCompanies = async () => {
-    try {
-      setLoading(true)
-      const params: any = { 
-        limit: 50, 
-        sort: '-createdAt',
-        search: debouncedSearch
-      }
-      
-      if (filters.hiringFreshers) params.hiringFreshers = true
-      if (filters.workMode) params.workMode = filters.workMode
-      if (filters.experience > 0) params.experience = filters.experience
-      if (filters.minPackage > 0) params.minPackage = filters.minPackage
-
-      const response = await apiService.companies.getAll(params)
-      
-      if (response.success) {
-        setCompanies(response.data.filter((c: any) => c.isActive !== false))
-      } else {
-        setError(response.message)
-      }
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchSuggested = async () => {
-    // Only fetch suggested if we don't have active search filters, to keep UI clean? 
-    // Or fetch always to show "Suggested for You" at top?
-    // Let's just fetch quietly.
-    try {
-        // We probably need a specialized call in apiService, effectively calling /companies/suggested/list
-        // Assuming apiService.companies.getSuggested exists or we use raw fetch for now if API wrapper isn't updated
-        // For now, I'll skip if wrapper isn't ready, but I updated the backend route.
-    } catch (e) { console.error(e) }
-  }
+  const companies = data?.data?.filter((c: any) => c.isActive !== false) || []
 
   const clearFilters = () => {
       setFilters({
@@ -114,9 +73,9 @@ export default function GetPlacedPage() {
             <div className="lg:col-span-3">
               <CompanyList 
                 companies={companies} 
-                loading={loading} 
-                error={error} 
-                onRetry={fetchCompanies} 
+                loading={isLoading} 
+                error={error?.message || null} 
+                onRetry={() => refetch()} 
               />
             </div>
 

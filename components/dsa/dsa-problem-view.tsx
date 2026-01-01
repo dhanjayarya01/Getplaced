@@ -7,6 +7,9 @@ import Link from "next/link"
 import { apiService } from "@/lib/api"
 import { DSAWorkspace } from "./dsa-workspace"
 import { VapiProvider } from "@/components/interviews/vapi-provider"
+import { useCodeDraftAutoSave } from "@/hooks/useCodeDraftAutoSave"
+import { localCache } from "@/lib/localCache"
+import { toast } from "sonner"
 
 export interface DSAProblemViewProps {
   problemId: string
@@ -27,6 +30,9 @@ export function DSAProblemView({ problemId, initialCode, initialLanguage, aiEnab
   const [isRunning, setIsRunning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Auto-save hook
+  useCodeDraftAutoSave(problemId, code, language, true)
+
   useEffect(() => {
     fetchProblem()
   }, [problemId])
@@ -41,7 +47,15 @@ export function DSAProblemView({ problemId, initialCode, initialLanguage, aiEnab
         
         const formatCode = (c: string) => c ? c.replace(/\\n/g, '\n') : ''
 
-        if (response.data.lastSubmissionCode && !initialCode) {
+        // Priority: Draft \u003e Last Submission \u003e Starter Code
+        const draft = localCache.codeDrafts.get(problemId)
+        
+        if (draft && !initialCode) {
+          // Load from draft
+          setCode(formatCode(draft.code))
+          setLanguage(draft.language || "javascript")
+          console.log('📝 Loaded code draft from localStorage')
+        } else if (response.data.lastSubmissionCode && !initialCode) {
           setCode(formatCode(response.data.lastSubmissionCode))
           setLanguage(response.data.lastSubmissionLanguage || "javascript")
         } else if (!initialCode) {

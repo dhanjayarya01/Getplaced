@@ -1,12 +1,11 @@
 import axios from 'axios'
-
+import { setupCache } from 'axios-cache-interceptor'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
-
 console.log('API Base URL:$$$$$$$$', API_BASE_URL);
 
-const apiClient = axios.create({
+const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
@@ -14,14 +13,17 @@ const apiClient = axios.create({
     },
 })
 
-/**
- * API Service Class
- * Centralized API endpoint management
- */
+const apiClient = setupCache(axiosInstance, {
+    ttl: 5 * 60 * 1000,
+    interpretHeader: true,
+    methods: ['get'],
+    cachePredicate: {
+        statusCheck: (status) => status >= 200 && status < 400,
+    },
+})
+
 class ApiService {
-    // ============================================
-    // AUTHENTICATION ENDPOINTS
-    // ============================================
+   
     auth = {
         googleLogin: () => {
             window.location.href = `${API_BASE_URL}/api/auth/google`
@@ -46,9 +48,7 @@ class ApiService {
         },
     }
 
-    // ============================================
-    // DSA ENDPOINTS
-    // ============================================
+
     dsa = {
         getAll: async (params?: any, config?: any) => {
             try {
@@ -136,9 +136,7 @@ class ApiService {
         },
     }
 
-    // ============================================
-    // DEVELOPMENT ENDPOINTS
-    // ============================================
+ 
     development = {
         getAll: async (params?: any) => {
             try {
@@ -204,9 +202,6 @@ class ApiService {
         },
     }
 
-    // ============================================
-    // COMPANY ENDPOINTS
-    // ============================================
     companies = {
         getAll: async (params?: any) => {
             try {
@@ -326,56 +321,7 @@ class ApiService {
         },
     }
 
-    mockInterviews = {
-        getQuestions: async (params?: any) => {
-            try {
-                const response = await apiClient.get('/api/mock-interviews/questions', { params })
-                return response.data
-            } catch (error) {
-                throw this._handleError(error)
-            }
-        },
 
-        createSession: async (data: any) => {
-            try {
-                const response = await apiClient.post('/api/mock-interviews/sessions', data)
-                return response.data
-            } catch (error) {
-                throw this._handleError(error)
-            }
-        },
-
-        getSessions: async (params?: any) => {
-            try {
-                const response = await apiClient.get('/api/mock-interviews/sessions', { params })
-                return response.data
-            } catch (error) {
-                throw this._handleError(error)
-            }
-        },
-
-        createQuestion: async (data: any) => {
-            try {
-                const response = await apiClient.post('/api/mock-interviews/questions', data)
-                return response.data
-            } catch (error) {
-                throw this._handleError(error)
-            }
-        },
-
-        updateQuestion: async (id: string, data: any) => {
-            try {
-                const response = await apiClient.put(`/api/mock-interviews/questions/${id}`, data)
-                return response.data
-            } catch (error) {
-                throw this._handleError(error)
-            }
-        },
-    }
-
-    // ============================================
-    // USER ENDPOINTS
-    // ============================================
     user = {
         getProfile: async () => {
             try {
@@ -414,9 +360,7 @@ class ApiService {
         },
     }
 
-    // ============================================
-    // ADMIN ENDPOINTS
-    // ============================================
+   
     admin = {
         getDashboard: async () => {
             try {
@@ -564,6 +508,24 @@ class ApiService {
         getById: async (id: string) => {
             try {
                 const response = await apiClient.get(`/api/mock-interviews/${id}`)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        createSession: async (data: any) => {
+            try {
+                const response = await apiClient.post('/api/mock-interviews/sessions', data)
+                return response.data
+            } catch (error) {
+                throw this._handleError(error)
+            }
+        },
+
+        getSessions: async (params?: any) => {
+            try {
+                const response = await apiClient.get('/api/mock-interviews/sessions', { params })
                 return response.data
             } catch (error) {
                 throw this._handleError(error)

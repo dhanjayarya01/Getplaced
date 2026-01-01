@@ -5,110 +5,42 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Check, TrendingUp, Building2 } from "lucide-react"
 import Link from "next/link"
-import { apiService } from "@/lib/api"
 import { useDebounce } from "@/hooks/use-debounce"
-import axios from "axios"
 import { useInView } from "react-intersection-observer"
+import { useInfiniteDSAProblems } from "@/hooks/useDSA"
 
 interface DSAProblemListProps {
   filters: any
 }
 
 export function DSAProblemList({ filters }: DSAProblemListProps) {
-  const [problems, setProblems] = useState<any[]>([])
-  const [loading, setLoading] = useState(false) // Initial loading state
-  const [initialLoaded, setInitialLoaded] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const debouncedSearch = useDebounce(searchQuery, 500)
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [totalProblems, setTotalProblems] = useState(0)
-  
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  } = useInfiniteDSAProblems(filters, debouncedSearch)
+
   const { ref, inView } = useInView({
     threshold: 0,
     rootMargin: '100px',
   })
 
-  // Reset list when filters or search change
+  // Auto-fetch next page when scrolling
   useEffect(() => {
-    setPage(1)
-    setHasMore(true)
-    setProblems([]) // Clear list to avoid mixing results
-    setInitialLoaded(false)
-    // We don't trigger fetch here directly, rely on [page] or separate effect?
-    // If we just reset page to 1, the page effect below will trigger fetch.
-    // But we need to ensure we don't double fetch.
-    // Let's use a ref or distinct effect.
-  }, [filters, debouncedSearch])
-
-  // Fetch when page changes or when reset (handled by page 1)
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchProblems(page, controller.signal)
-    return () => controller.abort()
-  }, [page, filters, debouncedSearch])
-
-  // Infinite scroll trigger
-  useEffect(() => {
-    if (inView && hasMore && !loading && initialLoaded) {
-      setPage((prev) => prev + 1)
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
     }
-  }, [inView, hasMore, loading, initialLoaded])
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const fetchProblems = async (pageNum: number, signal?: AbortSignal) => {
-    setLoading(true)
-    try {
-      const params: any = { 
-        page: pageNum, 
-        limit: 20,
-        isActive: true,
-        search: debouncedSearch || undefined
-      }
-      
-      if (filters.dataStructures?.length > 0) {
-        params.dataStructure = filters.dataStructures.join(',')
-      }
-      if (filters.patterns?.length > 0) {
-        params.pattern = filters.patterns.join(',')
-      }
-      if (filters.difficulties?.length > 0) {
-        params.difficulty = filters.difficulties.join(',')
-      }
-      if (filters.companies?.length > 0) {
-        params.company = filters.companies.join(',')
-      }
-
-      const response = await apiService.dsa.getAll(params, { signal })
-      
-      if (response && response.success) {
-        const newProblems = response.data
-        const pagination = response.pagination
-
-        if (pageNum === 1) {
-          setProblems(newProblems)
-        } else {
-          setProblems((prev: any[]) => {
-             // Create a map of existing IDs to prevent duplicates
-             const existingIds = new Set(prev.map(p => p._id))
-             const uniqueNewProblems = newProblems.filter((p: any) => !existingIds.has(p._id))
-             return [...prev, ...uniqueNewProblems]
-          })
-        }
-        
-        setTotalProblems(pagination.total)
-        setHasMore(pagination.page < pagination.pages)
-        setInitialLoaded(true)
-      }
-    } catch (error: any) {
-      if (!axios.isCancel(error) && error?.name !== 'CanceledError') {
-        console.error('Error fetching problems:', error)
-      }
-    } finally {
-      if (!signal?.aborted) {
-        setLoading(false)
-      }
-    }
-  }
+  // Flatten all pages into single problems array
+  const problems = data?.pages.flatMap(page => page?.data || []) || []
+  const totalProblems = data?.pages[0]?.pagination?.total || 0
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -142,15 +74,15 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
 
       {/* Scrollable List */}
       <div className="flex-1 overflow-y-auto relative p-0">
-        {/* Loading Overlay (only for initial load or search reset) */}
-        {loading && page === 1 && problems.length === 0 && (
+        {/* Loading Overlay (only for initial load) */}
+        {isLoading && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         )}
 
         <div className="divide-y divide-border">
-          {problems.length === 0 && !loading && (
+          {!isLoading && problems.length === 0 && (
             <div className="p-8 text-center text-muted-foreground h-full flex items-center justify-center">
               No problems found.
             </div>
@@ -224,13 +156,13 @@ export function DSAProblemList({ filters }: DSAProblemListProps) {
           ))}
           
           {/* Load More Trigger */}
-          {hasMore && (
+          {hasNextPage && (
             <div ref={ref} className="p-4 flex justify-center">
-              {loading && <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>}
+              {isFetchingNextPage && <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>}
             </div>
           )}
           
-          {!hasMore && problems.length > 0 && (
+          {!hasNextPage && problems.length > 0 && (
             <div className="p-4 text-center text-sm text-muted-foreground">
               No more problems to load
             </div>
