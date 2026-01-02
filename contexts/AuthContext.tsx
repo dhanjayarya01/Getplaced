@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { apiService } from '@/lib/api'
 
 interface User {
@@ -25,16 +26,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Routes that DON'T need automatic auth check on mount
+const PUBLIC_ROUTES = [
+  '/',
+  '/dsa',
+  '/interviews', 
+  '/getplaced',
+  '/code-arena'
+]
+
+// Helper to check if route is public
+function isPublicRoute(pathname: string): boolean {
+  // Exact match for public routes
+  if (PUBLIC_ROUTES.includes(pathname)) return true
+  
+  // Company detail pages are public (but not interview pages)
+  if (pathname.match(/^\/getplaced\/[^/]+$/) || pathname.match(/^\/getplaced\/[^/]+\/$/)) return true
+  
+  return false
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [showSignInModal, setShowSignInModal] = useState(false)
+  const pathname = usePathname()
 
-  // Check authentication status on mount
+  // Check authentication status on mount - but only for protected routes
   useEffect(() => {
+    if (isPublicRoute(pathname)) {
+      // Skip auth check for public routes
+      setLoading(false)
+      return
+    }
+    
     checkAuthStatus()
-  }, [])
+  }, [pathname])
 
   const checkAuthStatus = async () => {
     try {
