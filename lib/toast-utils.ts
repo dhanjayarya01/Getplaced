@@ -109,16 +109,8 @@ export async function toastPromise<T>(
 export function toastValidation(errors: string[]) {
     toast({
         title: '❌ Validation Error',
-        description: (
-            <ul className= "list-disc pl-4 space-y-1" >
-            {
-                errors.map((error, i) => (
-                    <li key= { i } > { error } </li>
-                ))
-}
-</ul>
-    ),
-variant: 'destructive',
-    duration: 6000,
-  })
+        description: errors.join('\n• '),
+        variant: 'destructive',
+        duration: 6000,
+    })
 }

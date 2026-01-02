@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import { SignInModal } from "@/components/SignInModal"
 import { ThemeProvider } from "@/components/theme-provider"
 import { QueryProvider } from "@/components/providers/QueryProvider"
+import { Toaster } from "@/components/ui/toaster" // Added Toaster import
 import "./globals.css"
 
 const _inter = Inter({ subsets: ["latin"] })
@@ -36,6 +37,7 @@ export default function RootLayout({
               {children}
               <SignInModal />
               <Analytics />
+              <Toaster /> {/* Added Toaster component */}
             </AuthProvider>
           </ThemeProvider>
         </QueryProvider>

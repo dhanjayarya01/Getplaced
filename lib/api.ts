@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { setupCache } from 'axios-cache-interceptor'
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
@@ -23,7 +24,7 @@ const apiClient = setupCache(axiosInstance, {
 })
 
 class ApiService {
-   
+
     auth = {
         googleLogin: () => {
             window.location.href = `${API_BASE_URL}/api/auth/google`
@@ -93,6 +94,9 @@ class ApiService {
         submit: async (id: string, data: any) => {
             try {
                 const response = await apiClient.post(`/api/dsa/${id}/submit`, data)
+                if (response.data.success && response.data.data?.accepted) {
+                    toastSuccess('All test cases passed!', '🎉 Solution Accepted')
+                }
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
@@ -111,6 +115,7 @@ class ApiService {
         create: async (data: any) => {
             try {
                 const response = await apiClient.post('/api/dsa', data)
+                toastSuccess('Problem created successfully')
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
@@ -120,6 +125,7 @@ class ApiService {
         update: async (id: string, data: any) => {
             try {
                 const response = await apiClient.put(`/api/dsa/${id}`, data)
+                toastSuccess('Problem updated successfully')
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
@@ -129,6 +135,7 @@ class ApiService {
         delete: async (id: string) => {
             try {
                 const response = await apiClient.delete(`/api/dsa/${id}`)
+                toastSuccess('Problem deleted successfully')
                 return response.data
             } catch (error) {
                 throw this._handleError(error)
@@ -136,7 +143,7 @@ class ApiService {
         },
     }
 
- 
+
     development = {
         getAll: async (params?: any) => {
             try {
@@ -360,7 +367,7 @@ class ApiService {
         },
     }
 
-   
+
     admin = {
         getDashboard: async () => {
             try {
@@ -568,22 +575,65 @@ class ApiService {
     // ============================================
     // ERROR HANDLER
     // ============================================
-    _handleError(error: any) {
+    _handleError(error: any, customMessage?: string, showToast: boolean = true) {
+        console.error('API Error:', error)
+
         if (error.response) {
+            const status = error.response.status
+            let message = customMessage || error.response.data.message || 'An error occurred'
+            let description = error.response.data.error || ''
+
+            if (status === 503) {
+                message = 'Server Under Maintenance'
+                description = 'Please try again later'
+            } else if (status === 502 || status === 504) {
+                message = 'Server Not Responding'
+                description = 'Backend server is down'
+            } else if (status === 500) {
+                message = 'Internal Server Error'
+                description = 'Something went wrong on the server'
+            } else if (status === 401) {
+                message = 'Unauthorized'
+                description = 'Please log in to continue'
+            } else if (status === 403) {
+                message = 'Access Denied'
+                description = 'You don\'t have permission'
+            } else if (status === 404) {
+                message = 'Not Found'
+                description = 'The requested resource doesn\'t exist'
+            }
+
+            if (showToast) {
+                toastError(description, message)
+            }
+
             return {
                 success: false,
-                message: error.response.data.message || 'An error occurred',
-                status: error.response.status,
+                message,
+                status,
             }
         } else if (error.request) {
+            const message = customMessage || 'Server Not Reachable'
+            const description = 'Backend server might be down or in maintenance mode'
+
+            if (showToast) {
+                toastError(description, message)
+            }
+
             return {
                 success: false,
-                message: 'No response from server. Please check your connection.',
+                message,
             }
         } else {
+            const message = customMessage || error.message || 'An unexpected error occurred'
+
+            if (showToast) {
+                toastError(message)
+            }
+
             return {
                 success: false,
-                message: error.message || 'An unexpected error occurred',
+                message,
             }
         }
     }
