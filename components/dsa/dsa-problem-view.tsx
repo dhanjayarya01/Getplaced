@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -9,7 +10,6 @@ import { DSAWorkspace } from "./dsa-workspace"
 import { VapiProvider } from "@/components/interviews/vapi-provider"
 import { useCodeDraftAutoSave } from "@/hooks/useCodeDraftAutoSave"
 import { localCache } from "@/lib/localCache"
-import { toast } from "sonner"
 
 export interface DSAProblemViewProps {
   problemId: string
@@ -20,9 +20,6 @@ export interface DSAProblemViewProps {
 
 export function DSAProblemView({ problemId, initialCode, initialLanguage, aiEnabled = true }: DSAProblemViewProps) {
   const router = useRouter()
-  const [problem, setProblem] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [code, setCode] = useState(initialCode || "")
   const [language, setLanguage] = useState(initialLanguage || "javascript")
   const [activeResultTab, setActiveResultTab] = useState<"testcases" | "custom">("testcases")
@@ -33,52 +30,55 @@ export function DSAProblemView({ problemId, initialCode, initialLanguage, aiEnab
   // Auto-save hook
   useCodeDraftAutoSave(problemId, code, language, true)
 
-  useEffect(() => {
-    fetchProblem()
-  }, [problemId])
-
-  const fetchProblem = async () => {
-    try {
-      setLoading(true)
+  // React Query for fetching problem data
+  const { data, isLoading, error: queryError } = useQuery({
+    queryKey: ['dsa', 'problem', problemId],
+    queryFn: async () => {
       const response = await apiService.dsa.getById(problemId)
-      if (response.success) {
-        const problemData = response.data.problem || response.data
-        setProblem(problemData)
-        
-        const formatCode = (c: string) => c ? c.replace(/\\n/g, '\n') : ''
-
-        // Priority: Draft \u003e Last Submission \u003e Starter Code
-        const draft = localCache.codeDrafts.get(problemId)
-        
-        if (draft && !initialCode) {
-          // Load from draft
-          setCode(formatCode(draft.code))
-          setLanguage(draft.language || "javascript")
-          console.log('📝 Loaded code draft from localStorage')
-        } else if (response.data.lastSubmissionCode && !initialCode) {
-          setCode(formatCode(response.data.lastSubmissionCode))
-          setLanguage(response.data.lastSubmissionLanguage || "javascript")
-        } else if (!initialCode) {
-          const starterCode = problemData.starterCode?.[language] || getDefaultStarterCode(language)
-          setCode(formatCode(starterCode))
-        }
-      } else {
-        setError(response.message || 'Failed to fetch problem')
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch problem')
       }
-    } catch (error: any) {
-      setError(error.message || 'Unknown error occurred')
-    } finally {
-      setLoading(false)
+      return response.data
+    },
+    staleTime: 5 * 60 * 1000, // Fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 1,
+  })
+
+  // Extract problem from response
+  const problem = data?.problem || data
+  const loading = isLoading
+  const error = queryError?.message || null
+
+  // Load code from draft or last submission (only once when problem loads)
+  const formatCode = (c: string) => c ? c.replace(/\\n/g, '\n') : ''
+
+  useEffect(() => {
+    if (problem && !code && !initialCode) {
+      // Priority: Draft > Last Submission > Starter Code
+      const draft = localCache.codeDrafts.get(problemId)
+      
+      if (draft) {
+        setCode(formatCode(draft.code))
+        setLanguage(draft.language || "javascript")
+        console.log('📝 Loaded code draft from localStorage')
+      } else if (data?.lastSubmissionCode) {
+        setCode(formatCode(data.lastSubmissionCode))
+        setLanguage(data.lastSubmissionLanguage || "javascript")
+      } else {
+        const starterCode = problem.starterCode?.[language] || getDefaultStarterCode(language)
+        setCode(formatCode(starterCode))
+      }
     }
-  }
+  }, [problem, problemId]) // Run when problem loads
 
   const getDefaultStarterCode = (lang: string) => {
     switch (lang) {
-      case 'python': return '# Write your solution here\ndef solution():\n    pass'
-      case 'java': return '// Write your solution here\nclass Solution {\n    public void solution() {\n        \n    }\n}'
-      case 'cpp': return '// Write your solution here\nvoid solution() {\n    \n}'
-      case 'c': return '// Write your solution here\n#include <stdio.h>\n\nvoid solution() {\n    // Read from stdin, print to stdout\n}'
-      default: return '// Write your solution here\nfunction solution() {\n  \n}'
+      case 'python': return '# Write your solution here\\ndef solution():\\n    pass'
+      case 'java': return '// Write your solution here\\nclass Solution {\\n    public void solution() {\\n        \\n    }\\n}'
+      case 'cpp': return '// Write your solution here\\nvoid solution() {\\n    \\n}'
+      case 'c': return '// Write your solution here\\n#include <stdio.h>\\n\\nvoid solution() {\\n    // Read from stdin, print to stdout\\n}'
+      default: return '// Write your solution here\\nfunction solution() {\\n  \\n}'
     }
   }
 
@@ -149,7 +149,7 @@ export function DSAProblemView({ problemId, initialCode, initialLanguage, aiEnab
             <Link href="/dsa">
               <Button>Back to Problems</Button>
             </Link>
-            <Button variant="outline" onClick={fetchProblem}>Retry</Button>
+            <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </div>
       </div>
