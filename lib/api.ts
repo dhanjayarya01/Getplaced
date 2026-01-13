@@ -84,8 +84,48 @@ class ApiService {
 
         run: async (id: string, data: any) => {
             try {
+                // 1. Submit code to backend and get jobId (same as submit)
                 const response = await apiClient.post(`/api/dsa/${id}/run`, data)
-                return response.data
+                const { jobId } = response.data
+
+                if (!jobId) {
+                    throw new Error('No job ID received')
+                }
+
+                console.log(`🏃 Run job submitted: ${jobId}, polling worker server for result...`)
+
+                // 2. Poll WORKER SERVER directly (every 500ms for Run, faster feedback)
+                const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://localhost:5001'
+                let attempts = 0
+                const maxAttempts = 30 // 15 seconds max for quick test
+
+                while (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 500)) // Wait 500ms (faster than submit)
+
+                    // Poll worker API directly
+                    const statusResponse = await fetch(`${workerApiUrl}/api/status/${jobId}`)
+                    const status = await statusResponse.json()
+
+                    console.log(`🏃 Run poll ${attempts + 1}: status=${status.status}`)
+
+                    // Job completed
+                    if (status.status === 'completed') {
+                        console.log(`✅ Run completed!`, status.result)
+                        return { success: true, data: status.result }
+                    }
+
+                    // Job failed
+                    if (status.status === 'failed') {
+                        console.error(`❌ Run failed:`, status.error)
+                        throw new Error(status.error || 'Code execution failed')
+                    }
+
+                    attempts++
+                }
+
+                // Timeout
+                throw new Error('Code execution timed out. Please try again.')
+
             } catch (error) {
                 throw this._handleError(error)
             }
@@ -104,7 +144,7 @@ class ApiService {
                 console.log(`📤 Job submitted: ${jobId}, polling worker server for result...`)
 
                 // 2. Poll WORKER SERVER directly (every 1s, max 60s)
-                const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'https://worker.getplaced.tech'
+                const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://localhost:5001'
                 let attempts = 0
                 const maxAttempts = 60
 
