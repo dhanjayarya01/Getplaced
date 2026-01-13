@@ -93,11 +93,51 @@ class ApiService {
 
         submit: async (id: string, data: any) => {
             try {
+                // 1. Submit code and get jobId
                 const response = await apiClient.post(`/api/dsa/${id}/submit`, data)
-                if (response.data.success && response.data.data?.accepted) {
-                    toastSuccess('All test cases passed!', '🎉 Solution Accepted')
+                const { jobId } = response.data
+
+                if (!jobId) {
+                    throw new Error('No job ID received')
                 }
-                return response.data
+
+                console.log(`📤 Job submitted: ${jobId}, polling worker server for result...`)
+
+                // 2. Poll WORKER SERVER directly (every 1s, max 60s)
+                const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://localhost:5001'
+                let attempts = 0
+                const maxAttempts = 60
+
+                while (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1s
+
+                    // Poll worker API directly (not main backend!)
+                    const statusResponse = await fetch(`${workerApiUrl}/api/status/${jobId}`)
+                    const status = await statusResponse.json()
+
+                    console.log(`📊 Poll ${attempts + 1}: status=${status.status}`)
+
+                    // Job completed
+                    if (status.status === 'completed') {
+                        console.log(`✅ Job completed!`, status.result)
+                        if (status.result?.accepted) {
+                            toastSuccess('All test cases passed!', '🎉 Solution Accepted')
+                        }
+                        return { success: true, data: status.result }
+                    }
+
+                    // Job failed
+                    if (status.status === 'failed') {
+                        console.error(`❌ Job failed:`, status.error)
+                        throw new Error(status.error || 'Code execution failed')
+                    }
+
+                    attempts++
+                }
+
+                // Timeout
+                throw new Error('Code execution timed out. Please try again.')
+
             } catch (error) {
                 throw this._handleError(error)
             }
