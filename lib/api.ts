@@ -104,7 +104,7 @@ class ApiService {
                 console.log(`📤 Job submitted: ${jobId}, polling worker server for result...`)
 
                 // 2. Poll WORKER SERVER directly (every 1s, max 60s)
-                const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://localhost:5001'
+                const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://64.227.180.201:5001'
                 let attempts = 0
                 const maxAttempts = 60
 
