@@ -143,7 +143,6 @@ class ApiService {
 
                 console.log(`📤 Job submitted: ${jobId}, polling worker server for result...`)
 
-                // 2. Poll WORKER SERVER directly (every 1s, max 60s)
                 const workerApiUrl = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://localhost:5001'
                 let attempts = 0
                 const maxAttempts = 60
@@ -151,7 +150,6 @@ class ApiService {
                 while (attempts < maxAttempts) {
                     await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1s
 
-                    // Poll worker API directly (not main backend!)
                     const statusResponse = await fetch(`${workerApiUrl}/api/status/${jobId}`)
                     const status = await statusResponse.json()
 
