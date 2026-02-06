@@ -1,25 +1,16 @@
 import axios from 'axios'
-import { setupCache } from 'axios-cache-interceptor'
 import { toastSuccess, toastError } from '@/lib/toast-utils'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 console.log('API Base URL:$$$$$$$$', API_BASE_URL);
 
-const axiosInstance = axios.create({
+// Plain axios instance - caching handled by TanStack Query and browser HTTP cache
+const apiClient = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
-    },
-})
-
-const apiClient = setupCache(axiosInstance, {
-    ttl: 5 * 60 * 1000,
-    interpretHeader: true,
-    methods: ['get'],
-    cachePredicate: {
-        statusCheck: (status) => status >= 200 && status < 400,
     },
 })
 

@@ -15,7 +15,7 @@ Modern, responsive web application built with Next.js 16 and React 19, featuring
 - **UI Components**: Radix UI
 - **Code Editor**: Monaco Editor
 - **State Management**: TanStack Query (React Query)
-- **HTTP Client**: Axios with caching
+- **HTTP Client**: Axios
 - **AI Voice**: VAPI AI
 - **Forms**: React Hook Form + Zod validation
 - **Charts**: Recharts
