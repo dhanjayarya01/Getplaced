@@ -750,8 +750,6 @@ class ApiService {
     }
 }
 
-// Export singleton instance
 export const apiService = new ApiService()
 
-// Export axios instance for custom requests
 export { apiClient }
