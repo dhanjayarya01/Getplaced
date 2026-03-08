@@ -4,17 +4,25 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Zap, LogOut, User } from "lucide-react"
+import { Menu, X, Zap, LogOut, User, LayoutDashboard, Settings } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Image from "next/image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const navLinks = [
-  { name: "Dashboard", href: "/dashboard" },
   { name: "DSA", href: "/dsa" },
   { name: "Interviews", href: "/interviews" },
   { name: "Code Arena", href: "/code-arena" },
   { name: "GetPlaced", href: "/getplaced" },
+  { name: "Find Jobs", href: "/jobs" },
 ]
 
 export function Navbar() {
@@ -63,35 +71,52 @@ export function Navbar() {
             {loading ? (
               <div className="h-9 w-24 bg-secondary animate-pulse rounded-lg" />
             ) : isAuthenticated && user ? (
-              <>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg">
-                  {user.profilePicture ? (
-                    <Image
-                      src={user.profilePicture}
-                      alt={user.name}
-                      width={24}
-                      height={24}
-                      className="rounded-full"
-                    />
-                  ) : (
-                    <User className="w-5 h-5 text-muted-foreground" />
-                  )}
-                  <span className="text-sm font-medium text-foreground max-w-[150px] truncate">
-                    {user.name}
-                  </span>
-                </div>
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-border">
+                    {user.profilePicture ? (
+                      <Image
+                        src={user.profilePicture}
+                        alt={user.name}
+                        fill
+                        className="rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="cursor-pointer flex items-center">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="cursor-pointer flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-500">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <>
+              <div className="flex items-center gap-2">
                 <Button onClick={handleSignIn} variant="ghost" size="sm">
                   Sign In
                 </Button>
@@ -102,7 +127,7 @@ export function Navbar() {
                 >
                   Get Started
                 </Button>
-              </>
+              </div>
             )}
           </div>
 
@@ -116,7 +141,7 @@ export function Navbar() {
       </div>
 
       {isOpen && (
-        <div className="md:hidden bg-background border-b border-border">
+        <div className="md:hidden bg-background border-b border-border max-h-[calc(100vh-4rem)] overflow-y-auto">
           <div className="px-4 py-4 space-y-2">
             {navLinks.map((link) => (
               <Link
@@ -143,41 +168,61 @@ export function Navbar() {
                 <div className="h-10 bg-secondary animate-pulse rounded-lg" />
               ) : isAuthenticated && user ? (
                 <>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
-                    {user.profilePicture ? (
-                      <Image
-                        src={user.profilePicture}
-                        alt={user.name}
-                        width={24}
-                        height={24}
-                        className="rounded-full"
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-muted-foreground" />
-                    )}
+                  <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50 rounded-lg">
+                    <div className="relative w-10 h-10 rounded-full bg-secondary border border-border flex items-center justify-center overflow-hidden">
+                      {user.profilePicture ? (
+                        <Image
+                          src={user.profilePicture}
+                          alt={user.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">{user.name}</span>
                       <span className="text-xs text-muted-foreground">{user.email}</span>
                     </div>
                   </div>
+                  
+                  <Link 
+                    href="/dashboard" 
+                    className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary rounded-lg transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                  
+                  <Link 
+                    href="/settings" 
+                    className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary rounded-lg transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Link>
+
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
-                    className="w-full justify-start gap-2"
+                    className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                   >
                     <LogOut className="w-4 h-4" />
                     Sign Out
                   </Button>
                 </>
               ) : (
-                <>
+                <div className="pt-2 flex flex-col gap-2">
                   <Button
                     onClick={() => {
                       handleSignIn()
                       setIsOpen(false)
                     }}
                     variant="ghost"
-                    className="w-full justify-start"
+                    className="w-full justify-center"
                   >
                     Sign In
                   </Button>
@@ -186,11 +231,11 @@ export function Navbar() {
                       handleSignIn()
                       setIsOpen(false)
                     }}
-                    className="w-full bg-primary text-primary-foreground"
+                    className="w-full justify-center bg-primary text-primary-foreground"
                   >
                     Get Started
                   </Button>
-                </>
+                </div>
               )}
             </div>
           </div>

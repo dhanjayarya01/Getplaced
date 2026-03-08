@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { FileText, Upload, Sparkles, Check, AlertCircle } from "lucide-react"
+import { ResumeModal } from "@/components/resume/resume-modal"
 
 export function ResumeSection() {
   return (
@@ -23,10 +24,12 @@ export function ResumeSection() {
             <Sparkles className="w-4 h-4 mr-2" />
             Generate with AI
           </Button>
-          <Button variant="outline" className="w-full bg-transparent">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload Existing
-          </Button>
+          <ResumeModal>
+            <Button variant="outline" className="w-full bg-transparent">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Existing
+            </Button>
+          </ResumeModal>
         </div>
       </div>
 

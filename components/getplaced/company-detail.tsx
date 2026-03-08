@@ -114,7 +114,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
       <div className="bg-card rounded-xl border border-border p-8 mb-8 shadow-sm">
         <div className="flex flex-col md:flex-row items-start gap-6">
           {company.logo ? (
-            <img src={company.logo} alt={company.name} className="w-24 h-24 rounded-xl object-contain bg-white border border-border p-2" />
+            <img src={company.logo} alt={company.name} className="w-24 h-24 rounded-xl object-contain bg-white border border-border p-1" />
           ) : (
             <div className="w-24 h-24 rounded-xl bg-secondary flex items-center justify-center text-4xl font-bold">
               {company.name?.charAt(0)}
@@ -158,11 +158,6 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
-                 {company.difficulty && (
-                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getDifficultyColor(company.difficulty)}`}>
-                  {company.difficulty} Interview
-                </span>
-                 )}
                  {company.isHiring && (
                      <Badge variant="default" className="bg-green-500 hover:bg-green-600">Hiring Now</Badge>
                  )}

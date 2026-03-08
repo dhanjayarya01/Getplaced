@@ -82,7 +82,7 @@ export function CompanyList({ companies, loading, error, onRetry }: CompanyListP
 
             <div className="flex items-start gap-4">
               {company.logo ? (
-                <img src={company.logo} alt={company.name} className="w-14 h-14 rounded-xl bg-secondary object-cover" />
+                <img src={company.logo} alt={company.name} className="w-14 h-14 rounded-xl bg-white object-contain p-1 border border-border" />
               ) : (
                 <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center text-2xl font-bold text-muted-foreground">{company.name?.charAt(0) || '?'}</div>
               )}

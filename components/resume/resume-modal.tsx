@@ -14,7 +14,11 @@ interface Resume {
   parsedData: any
 }
 
-export function ResumeModal() {
+interface ResumeModalProps {
+  children?: React.ReactNode;
+}
+
+export function ResumeModal({ children }: ResumeModalProps = {}) {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<'list' | 'upload' | 'detail' | 'pdf'>('upload')
   const [resumes, setResumes] = useState<Resume[]>([])
@@ -110,13 +114,21 @@ export function ResumeModal() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className="w-full gap-2" variant={resumes.length > 0 ? "default" : "outline"}>
-        <FileText className="h-4 w-4" />
-        {resumes.length > 0 ? 'Resume' : 'Upload Resume'}
-      </Button>
+      {children ? (
+        <div onClick={() => setOpen(true)} className="w-full cursor-pointer">
+          <div className="pointer-events-none w-full">
+            {children}
+          </div>
+        </div>
+      ) : (
+        <Button onClick={() => setOpen(true)} className="w-full gap-2" variant={resumes.length > 0 ? "default" : "outline"}>
+          <FileText className="h-4 w-4" />
+          {resumes.length > 0 ? 'Resume' : 'Upload Resume'}
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[70vw] w-[70vw] h-[70vh] sm:h-[70vh] overflow-y-auto bg-background/95 backdrop-blur-xl border border-primary/20 shadow-2xl shadow-primary/20 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <FileText className="h-6 w-6 text-primary" />
@@ -368,8 +380,8 @@ export function ResumeModal() {
           {view === 'pdf' && selectedResume && (
             <div className="space-y-4">
               <div className="bg-secondary/30 rounded-lg overflow-hidden" style={{ height: '70vh' }}>
-                <iframe  
-                  src={selectedResume.resumeUrl}
+                <iframe
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedResume.resumeUrl)}&embedded=true`}
                   className="w-full h-full border-0"
                   title="Resume PDF Preview"
                 />
