@@ -13,7 +13,7 @@ import {
 import Link from "next/link"
 
 // NEXT_PUBLIC_ prefix is required for env vars to be readable in the browser (Next.js rule)
-const FILE_SERVER = process.env.NEXT_PUBLIC_FILE_SERVER || 'http://143.110.184.1:5008'
+const FILE_SERVER = process.env.NEXT_PUBLIC_FILE_SERVER 
 interface CodeArenaWorkspaceProps {   
   problemId: string
 }
