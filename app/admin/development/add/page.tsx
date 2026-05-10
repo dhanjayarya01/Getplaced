@@ -11,8 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { X, Plus } from "lucide-react"
 
-const TECHNOLOGIES = ['React', 'Node.js', 'Next.js', 'Express', 'MongoDB', 'PostgreSQL', 'TypeScript', 'JavaScript', 'Python', 'Django', 'Flask']
-const TOPICS = ['Hooks', 'State Management', 'Routing', 'API Integration', 'Authentication', 'Database Design', 'REST APIs', 'GraphQL']
+const TECHNOLOGIES = ['React', 'Next.js', 'Node.js', 'TypeScript', 'Python', 'Spring Boot', 'MongoDB', 'PostgreSQL']
+const CATEGORIES = ['State Management', 'API Integration', 'Authentication', 'Database Design', 'Performance', 'Testing', 'DevOps']
 const DIFFICULTIES = ['Beginner', 'Intermediate', 'Advanced']
 const TYPES = ['coding', 'project', 'debugging', 'feature-implementation']
 
@@ -24,25 +24,26 @@ export default function AddDevelopmentProblem() {
     slug: '',
     description: '',
     difficulty: 'Beginner',
-    primaryTechnology: 'React',
     technologies: [] as string[],
-    topics: [] as string[],
+    categories: [] as string[],
     type: 'coding',
     companies: [] as string[],
     estimatedTime: '',
     xpReward: 100,
     hints: [''],
-    // For coding type
-    codingProblem: {
-      starterCode: '',
-      solution: '',
-      testCases: [{ input: '', expectedOutput: '', isHidden: false }]
-    },
+
     // For project type
     projectProblem: {
       setupInstructions: '',
       tasks: [{ title: '', description: '', type: 'feature', hints: [''] }],
-      files: [{ path: '', content: '', language: 'javascript' }]
+      files: [{ path: '', content: '', language: 'javascript' }],
+      runtimeEnvironment: {
+        baseImage: 'node:18',
+        entrypoint: 'npm',
+        args: 'run, dev',
+        installCommand: 'npm install',
+        port: 3000
+      }
     }
   })
 
@@ -86,7 +87,14 @@ export default function AddDevelopmentProblem() {
     setLoading(true)
 
     try {
-      const response = await apiService.development.create(formData)
+      // Parse the comma-separated args string into an array before sending
+      const payload = JSON.parse(JSON.stringify(formData));
+      if (payload.projectProblem?.runtimeEnvironment?.args) {
+        const rawArgs = payload.projectProblem.runtimeEnvironment.args as string;
+        payload.projectProblem.runtimeEnvironment.args = rawArgs.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+
+      const response = await apiService.development.create(payload)
       if (response.success) {
         alert('Problem created successfully!')
         router.push('/admin/development')
@@ -211,40 +219,46 @@ export default function AddDevelopmentProblem() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Primary Technology *</Label>
-              <Select
-                value={formData.primaryTechnology}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, primaryTechnology: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TECHNOLOGIES.map(tech => (
-                    <SelectItem key={tech} value={tech}>{tech}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Topics *</Label>
+              <Label>Technologies *</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {TOPICS.map(topic => (
+                {TECHNOLOGIES.map(tech => (
                   <button
-                    key={topic}
+                    key={tech}
                     type="button"
                     onClick={() => setFormData(prev => ({
                       ...prev,
-                      topics: toggleArrayItem(prev.topics, topic)
+                      technologies: toggleArrayItem(prev.technologies, tech)
                     }))}
                     className={`px-3 py-1 rounded text-sm ${
-                      formData.topics.includes(topic)
+                      formData.technologies.includes(tech)
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-accent'
                     }`}
                   >
-                    {topic}
+                    {tech}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label>Categories *</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {CATEGORIES.map(category => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      categories: toggleArrayItem(prev.categories, category)
+                    }))}
+                    className={`px-3 py-1 rounded text-sm ${
+                      formData.categories.includes(category)
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-accent'
+                    }`}
+                  >
+                    {category}
                   </button>
                 ))}
               </div>
@@ -278,38 +292,106 @@ export default function AddDevelopmentProblem() {
           </CardContent>
         </Card>
 
-        {/* Coding Problem Fields */}
-        {formData.type === 'coding' && (
+        {/* Runtime Environment (Project Type Only) */}
+        {formData.type === 'project' && (
           <Card>
             <CardHeader>
-              <CardTitle>Coding Problem Details</CardTitle>
+              <CardTitle>Runtime Environment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="starterCode">Starter Code</Label>
-                <Textarea
-                  id="starterCode"
-                  value={formData.codingProblem.starterCode}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    codingProblem: { ...prev.codingProblem, starterCode: e.target.value }
-                  }))}
-                  rows={6}
-                  placeholder="function solution() { ... }"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="baseImage">Base Image *</Label>
+                  <Select
+                    value={formData.projectProblem.runtimeEnvironment.baseImage}
+                    onValueChange={(value) => setFormData(prev => ({
+                      ...prev,
+                      projectProblem: {
+                        ...prev.projectProblem,
+                        runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, baseImage: value }
+                      }
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select image" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="node:18">node:18 (React/Node)</SelectItem>
+                      <SelectItem value="node:20">node:20 (Latest Node)</SelectItem>
+                      <SelectItem value="python:3.10">python:3.10 (Flask/Django)</SelectItem>
+                      <SelectItem value="openjdk:17">openjdk:17 (Spring Boot)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="port">Internal Port</Label>
+                  <Input
+                    id="port"
+                    type="number"
+                    value={formData.projectProblem.runtimeEnvironment.port}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      projectProblem: {
+                        ...prev.projectProblem,
+                        runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, port: parseInt(e.target.value) || 3000 }
+                      }
+                    }))}
+                  />
+                </div>
               </div>
 
               <div>
-                <Label htmlFor="solution">Solution</Label>
-                <Textarea
-                  id="solution"
-                  value={formData.codingProblem.solution}
+                <Label htmlFor="installCommand">Install Command</Label>
+                <Input
+                  id="installCommand"
+                  placeholder="e.g., npm install or pip install -r requirements.txt"
+                  value={formData.projectProblem.runtimeEnvironment.installCommand}
                   onChange={(e) => setFormData(prev => ({
                     ...prev,
-                    codingProblem: { ...prev.codingProblem, solution: e.target.value }
+                    projectProblem: {
+                      ...prev.projectProblem,
+                      runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, installCommand: e.target.value }
+                    }
                   }))}
-                  rows={6}
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="entrypoint">Entrypoint *</Label>
+                  <Input
+                    id="entrypoint"
+                    placeholder="e.g., npm, python, java"
+                    value={formData.projectProblem.runtimeEnvironment.entrypoint}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      projectProblem: {
+                        ...prev.projectProblem,
+                        runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, entrypoint: e.target.value }
+                      }
+                    }))}
+                    required={formData.type === 'project'}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="args">Arguments (comma separated) *</Label>
+                  <Input
+                    id="args"
+                    placeholder="e.g., run, dev or app.py"
+                    value={formData.projectProblem.runtimeEnvironment.args}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      projectProblem: {
+                        ...prev.projectProblem,
+                        runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, args: e.target.value }
+                      }
+                    }))}
+                    required={formData.type === 'project'}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Will be parsed as: {JSON.stringify(formData.projectProblem.runtimeEnvironment.args.split(',').map(s => s.trim()).filter(Boolean))}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

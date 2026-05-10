@@ -6,79 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Search, Check, Play, Clock, Star, Terminal } from "lucide-react"
 import Link from "next/link"
 
-const problems = [
-  {
-    id: 1,
-    title: "Implement useState Hook",
-    description: "Create a custom useState hook from scratch in React",
-    difficulty: "Intermediate",
-    stack: ["React", "TypeScript"],
-    xp: 150,
-    solved: true,
-    time: "45 min",
-    rating: 4.8,
-  },
-  {
-    id: 2,
-    title: "Build REST API with Auth",
-    description: "Create a RESTful API with JWT authentication using Node.js",
-    difficulty: "Intermediate",
-    stack: ["Node.js", "Express", "MongoDB"],
-    xp: 200,
-    solved: false,
-    time: "60 min",
-    rating: 4.6,
-  },
-  {
-    id: 3,
-    title: "Real-time Chat Application",
-    description: "Build a chat app with WebSocket connections",
-    difficulty: "Advanced",
-    stack: ["React", "Node.js", "Socket.io"],
-    xp: 300,
-    solved: false,
-    time: "90 min",
-    rating: 4.9,
-  },
-  {
-    id: 4,
-    title: "Redux Store from Scratch",
-    description: "Implement a simplified Redux-like state management",
-    difficulty: "Intermediate",
-    stack: ["TypeScript", "React"],
-    xp: 180,
-    solved: true,
-    time: "50 min",
-    rating: 4.7,
-  },
-  {
-    id: 5,
-    title: "Build a Form Validation Library",
-    description: "Create a reusable form validation library with TypeScript",
-    difficulty: "Intermediate",
-    stack: ["TypeScript"],
-    xp: 160,
-    solved: false,
-    time: "40 min",
-    rating: 4.5,
-  },
-  {
-    id: 6,
-    title: "Implement Virtual DOM",
-    description: "Build a simplified virtual DOM diffing algorithm",
-    difficulty: "Advanced",
-    stack: ["JavaScript", "TypeScript"],
-    xp: 350,
-    solved: false,
-    time: "120 min",
-    rating: 4.9,
-  },
-]
+import { useDevelopmentProblems } from "@/hooks/useDevelopment"
+import { Loader2 } from "lucide-react"
 
 export function CodeArenaProblemList() {
   const [searchQuery, setSearchQuery] = useState("")
+  const { data: response, isLoading } = useDevelopmentProblems()
 
-  const filteredProblems = problems.filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+  const problems = response?.data || []
+  const filteredProblems = problems.filter((p: any) => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -108,16 +44,24 @@ export function CodeArenaProblemList() {
       </div>
 
       <div className="grid gap-4">
-        {filteredProblems.map((problem) => (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : filteredProblems.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            No problems found matching your search.
+          </div>
+        ) : filteredProblems.map((problem: any) => (
           <Link
-            key={problem.id}
-            href={`/code-arena/${problem.id}`}
+            key={problem._id}
+            href={`/code-arena/${problem._id}`}
             className="bg-card rounded-xl border border-border p-6 hover:border-primary/50 transition-all hover:shadow-lg group"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  {problem.solved && (
+                  {problem.userStatus === 'solved' && (
                     <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
                       <Check className="w-4 h-4 text-primary" />
                     </div>
@@ -129,7 +73,7 @@ export function CodeArenaProblemList() {
                 </div>
                 <p className="text-muted-foreground mb-4">{problem.description}</p>
                 <div className="flex flex-wrap gap-2">
-                  {problem.stack.map((tech) => (
+                  {problem.technologies?.map((tech: string) => (
                     <span key={tech} className="px-3 py-1 bg-secondary rounded-full text-sm">
                       {tech}
                     </span>
@@ -140,13 +84,13 @@ export function CodeArenaProblemList() {
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-1 text-sm">
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                  <span>{problem.rating}</span>
+                  <span>{problem.rating || 0}</span>
                 </div>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
-                  <span>{problem.time}</span>
+                  <span>{problem.estimatedTime || "N/A"}</span>
                 </div>
-                <div className="text-sm font-medium text-primary">+{problem.xp} XP</div>
+                <div className="text-sm font-medium text-primary">+{problem.xpReward} XP</div>
               </div>
             </div>
 
