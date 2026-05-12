@@ -60,6 +60,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const [testState, setTestState] = useState<'idle' | 'running' | 'done'>('idle')
   const [testResult, setTestResult] = useState<{ success: boolean; logs: string } | null>(null)
   const [showTestModal, setShowTestModal] = useState(false)
+  const [isSubmittingScore, setIsSubmittingScore] = useState(false)
 
   const [terminalOutput, setTerminalOutput] = useState<string[]>(['$ Click "Prepare to Run" to start a live container.'])
   const terminalRef = useRef<HTMLDivElement>(null)
@@ -209,6 +210,39 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     } catch (e: any) { 
       setTestState('idle')
       addLog(`$ ✗ ${e.message}`) 
+    }
+  }
+
+  const handleCompleteProblem = async () => {
+    if (!problemDetails || !problemDetails._id) return;
+    setIsSubmittingScore(true);
+    try {
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token');
+      
+      const res = await fetch(`${API}/api/development/submit`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          problemId: problemDetails._id,
+          xpEarned: problemDetails.xpReward || 50
+        }),
+      });
+
+      if (res.ok) {
+        addLog(`$ ✓ Progress saved! Earned ${problemDetails.xpReward || 50} XP.`);
+        window.location.href = '/code-arena'; // Redirect back to arena
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to submit score');
+      }
+    } catch (e: any) {
+      addLog(`$ ✗ Error saving progress: ${e.message}`);
+      setIsSubmittingScore(false);
+      setShowTestModal(false);
     }
   }
 
