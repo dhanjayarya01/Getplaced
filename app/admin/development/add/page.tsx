@@ -42,6 +42,7 @@ export default function AddDevelopmentProblem() {
         entrypoint: 'npm',
         args: 'run, dev',
         installCommand: 'npm install',
+        testCommand: 'npm test',
         port: 3000
       }
     }
@@ -340,20 +341,37 @@ export default function AddDevelopmentProblem() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="installCommand">Install Command</Label>
-                <Input
-                  id="installCommand"
-                  placeholder="e.g., npm install or pip install -r requirements.txt"
-                  value={formData.projectProblem.runtimeEnvironment.installCommand}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    projectProblem: {
-                      ...prev.projectProblem,
-                      runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, installCommand: e.target.value }
-                    }
-                  }))}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="installCommand">Install Command</Label>
+                  <Input
+                    id="installCommand"
+                    placeholder="e.g., npm install or pip install -r requirements.txt"
+                    value={formData.projectProblem.runtimeEnvironment.installCommand}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      projectProblem: {
+                        ...prev.projectProblem,
+                        runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, installCommand: e.target.value }
+                      }
+                    }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="testCommand">Test Command</Label>
+                  <Input
+                    id="testCommand"
+                    placeholder="e.g., npm test or pytest"
+                    value={formData.projectProblem.runtimeEnvironment.testCommand}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      projectProblem: {
+                        ...prev.projectProblem,
+                        runtimeEnvironment: { ...prev.projectProblem.runtimeEnvironment, testCommand: e.target.value }
+                      }
+                    }))}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

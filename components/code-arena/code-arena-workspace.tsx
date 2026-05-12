@@ -57,6 +57,10 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const [pollSeconds, setPollSeconds] = useState(0)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const [testState, setTestState] = useState<'idle' | 'running' | 'done'>('idle')
+  const [testResult, setTestResult] = useState<{ success: boolean; logs: string } | null>(null)
+  const [showTestModal, setShowTestModal] = useState(false)
+
   const [terminalOutput, setTerminalOutput] = useState<string[]>(['$ Click "Prepare to Run" to start a live container.'])
   const terminalRef = useRef<HTMLDivElement>(null)
 
@@ -183,7 +187,29 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       })).json()
       addLog(`$ ✓ ${d.message || 'Stopped.'}`)
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
-    finally { setSessionId(null); setPreviewUrl(null); setSessionState('idle') }
+    finally { setSessionId(null); setPreviewUrl(null); setSessionState('idle'); setTestState('idle'); setTestResult(null); }
+  }
+
+  const handleRunTests = async () => {
+    if (!sessionId) return
+    setTestState('running')
+    addLog(`$ Executing hidden tests...`)
+    try {
+      const r = await fetch(`${FILE_SERVER}/run-tests`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Test execution failed')
+      
+      setTestResult(d)
+      setTestState('done')
+      setShowTestModal(true)
+      addLog(d.success ? `$ ✓ Tests Passed!` : `$ ✗ Tests Failed.`)
+    } catch (e: any) { 
+      setTestState('idle')
+      addLog(`$ ✗ ${e.message}`) 
+    }
   }
 
   // ── Sub-components ───────────────────────────────────────────────────
@@ -241,9 +267,20 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         </Button>
       )}
       {sessionState === 'running' && (
-        <Button size={size} variant="destructive" onClick={handleStopProject} className="h-7 text-xs gap-1.5">
-          <Square className="w-3 h-3" />Stop
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size={size} variant="destructive" onClick={handleStopProject} className="h-7 text-xs gap-1.5">
+            <Square className="w-3 h-3" />Stop
+          </Button>
+          <Button size={size} onClick={handleRunTests} disabled={testState === 'running'} className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+            {testState === 'running' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Terminal className="w-3 h-3" />}
+            {testState === 'running' ? 'Testing...' : 'Run Tests'}
+          </Button>
+          {testResult && (
+             <Button size={size} variant="ghost" onClick={() => setShowTestModal(true)} className={`h-7 text-xs gap-1.5 ${testResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
+               {testResult.success ? '✓ Passed' : '✗ Failed'}
+             </Button>
+          )}
+        </div>
       )}
       {sessionState === 'stopping' && (
         <Button size={size} disabled className="h-7 text-xs gap-1.5">
@@ -499,6 +536,27 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
           </PanelGroup>
         </Panel>
       </PanelGroup>
+
+      {/* TEST RESULTS MODAL */}
+      {showTestModal && testResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#30363d]">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                {testResult.success ? <span className="text-emerald-400">✓ Tests Passed</span> : <span className="text-red-400">✗ Tests Failed</span>}
+              </h2>
+              <button onClick={() => setShowTestModal(false)} className="text-muted-foreground hover:text-white">✕</button>
+            </div>
+            <div className="p-4 overflow-y-auto font-mono text-xs bg-black/40 flex-1">
+              <pre className="whitespace-pre-wrap">{testResult.logs}</pre>
+            </div>
+            <div className="px-4 py-3 border-t border-[#30363d] flex justify-end">
+              <Button onClick={() => setShowTestModal(false)} variant="outline" className="h-8">Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
