@@ -57,8 +57,8 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const [isPreviewReady, setIsPreviewReady] = useState(false)
   const [pollSeconds, setPollSeconds] = useState(0)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  // Ref to the preview iframe — lets us reload it in-place (no unmount = no black screen)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const editorRef = useRef<any>(null) // Monaco editor instance ref
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
 
   const [testState, setTestState] = useState<'idle' | 'running' | 'done'>('idle')
@@ -178,9 +178,17 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     try {
       const r = await fetch(`${FILE_SERVER}/api/content?problem=${problemDetails.slug}&file=${encodeURIComponent(node.path)}`)
       const d = await r.json()
-      setCode(d.content ?? '// Error loading content')
-    } catch { setCode('// Error loading content') }
-    finally { setIsLoadingContent(false) }
+      const content = d.content ?? '// Error loading content'
+      setCode(content)
+      if (editorRef.current) {
+        editorRef.current.setValue(content)
+        editorRef.current.setScrollTop(0)
+      }
+    } catch {
+      const fallback = '// Error loading content'
+      setCode(fallback)
+      if (editorRef.current) editorRef.current.setValue(fallback)
+    } finally { setIsLoadingContent(false) }
   }
 
   // Reload the preview iframe in-place by changing its src directly.
@@ -215,6 +223,9 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       }
       addLog(`$ ✓ Saved: ${activeFilePath}`)
 
+      // Show loading overlay immediately after save — before compile delay / chokidar delay
+      if (isPreviewReady) setIsPreviewLoading(true)
+
       if (isJavaFile && isPreviewReady) {
         addLog(`$ Compiling Java sources... (mvn compile)`)
         try {
@@ -225,12 +236,9 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
           const cd = await cr.json()
           if (cd.success !== false && !cd.logs?.toLowerCase().includes('[error]')) {
             addLog(`$ ✓ Compile successful! Waiting for Spring Boot to restart...`)
-            // Poll /status every 600 ms after compile. DevTools restarts the app
-            // context (briefly drops HTTP), then comes back. We reload the
-            // preview as soon as the server responds healthy again.
             let polls = 0
-            const maxPolls = 25 // 15 s max
-            const sid = sessionId // capture in closure
+            const maxPolls = 25
+            const sid = sessionId
             const pollRestart = setInterval(async () => {
               polls++
               try {
@@ -243,20 +251,23 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
               } catch {}
               if (polls >= maxPolls) {
                 clearInterval(pollRestart)
+                setIsPreviewLoading(false)
                 addLog(`$ Timed out waiting for restart — reload manually if needed.`)
               }
             }, 600)
           } else {
+            setIsPreviewLoading(false)
             const lines = (cd.logs || '').split('\n')
             lines.forEach((l: string) => { if (l.trim()) addLog(l) })
             addLog(`$ ✗ Compile failed — fix the errors above and save again.`)
           }
-        } catch (ce: any) { addLog(`$ ✗ Compile error: ${ce.message}`) }
+        } catch (ce: any) { setIsPreviewLoading(false); addLog(`$ ✗ Compile error: ${ce.message}`) }
 
       } else if (!isJavaFile && isPreviewReady) {
-        // Vite (JS/TS/CSS/HTML): reload the iframe in-place after a short delay
-        // so chokidar (1 s poll interval) has time to detect the file change.
+        // Vite/Node/Python: reload after chokidar detects file change
         reloadPreview(1200)
+      } else {
+        setIsPreviewLoading(false)
       }
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
   }
@@ -714,10 +725,19 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />
                       </div>
                     )}
+                     {/* Monaco editor — uncontrolled pattern via editorRef.
+                         Using onMount + editorRef instead of value={code} prevents
+                         Monaco from calling setValue on every React re-render,
+                         which was causing scroll-to-bottom when typing fast. */}
                     <Editor
                       height="100%"
                       language={editorLanguage}
-                      value={code}
+                      defaultValue={code}
+                      onMount={(editor) => {
+                        editorRef.current = editor
+                        // Set initial content in case defaultValue was empty
+                        if (code && editor.getValue() !== code) editor.setValue(code)
+                      }}
                       onChange={val => setCode(val ?? '')}
                       theme="vs-dark"
                       options={{
