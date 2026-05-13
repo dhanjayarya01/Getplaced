@@ -57,6 +57,9 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const [isPreviewReady, setIsPreviewReady] = useState(false)
   const [pollSeconds, setPollSeconds] = useState(0)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Ref to the preview iframe — lets us reload it in-place (no unmount = no black screen)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
 
   const [testState, setTestState] = useState<'idle' | 'running' | 'done'>('idle')
   const [testResult, setTestResult] = useState<{ success: boolean; logs: string } | null>(null)
@@ -180,8 +183,26 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     finally { setIsLoadingContent(false) }
   }
 
+  // Reload the preview iframe in-place by changing its src directly.
+  // The browser navigates within the mounted iframe so the previous page
+  // stays visible until the new content arrives — no black-screen flash.
+  const reloadPreview = (delayMs = 0) => {
+    const doReload = () => {
+      if (!iframeRef.current || !previewUrl) return
+      setIsPreviewLoading(true)
+      const path = previewPath === '/' ? '' : previewPath
+      const base = `${previewUrl}${path}`
+      const clean = base.replace(/([?&])_t=\d+(&?)/, (_, q, a) => a ? q : '').replace(/[?&]$/, '')
+      const sep = clean.includes('?') ? '&' : '?'
+      iframeRef.current.src = `${clean}${sep}_t=${Date.now()}`
+    }
+    if (delayMs > 0) setTimeout(doReload, delayMs)
+    else doReload()
+  }
+
   const handleSave = async () => {
     if (!sessionId || !activeFilePath) return
+    const isJavaFile = /\.java$/.test(activeFilePath)
     try {
       const res = await fetch(`${FILE_SERVER}/save-file`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -192,12 +213,50 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         addLog(`$ ✗ Save failed: ${err.error || res.statusText}`)
         return
       }
-      addLog(`$ ✓ Saved: ${activeFilePath} — refreshing preview...`)
-      // Give Vite's chokidar polling (1 s interval) time to detect the file
-      // change, then force-reload the iframe by toggling isPreviewReady.
-      if (isPreviewReady) {
-        setIsPreviewReady(false)
-        setTimeout(() => setIsPreviewReady(true), 800)
+      addLog(`$ ✓ Saved: ${activeFilePath}`)
+
+      if (isJavaFile && isPreviewReady) {
+        addLog(`$ Compiling Java sources... (mvn compile)`)
+        try {
+          const cr = await fetch(`${FILE_SERVER}/execute-command`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, command: 'mvn compile -q 2>&1' }),
+          })
+          const cd = await cr.json()
+          if (cd.success !== false && !cd.logs?.toLowerCase().includes('[error]')) {
+            addLog(`$ ✓ Compile successful! Waiting for Spring Boot to restart...`)
+            // Poll /status every 600 ms after compile. DevTools restarts the app
+            // context (briefly drops HTTP), then comes back. We reload the
+            // preview as soon as the server responds healthy again.
+            let polls = 0
+            const maxPolls = 25 // 15 s max
+            const sid = sessionId // capture in closure
+            const pollRestart = setInterval(async () => {
+              polls++
+              try {
+                const s = await (await fetch(`${FILE_SERVER}/status/${sid}`)).json()
+                if (s.ready) {
+                  clearInterval(pollRestart)
+                  addLog(`$ ✓ App restarted! Reloading preview...`)
+                  reloadPreview(300)
+                }
+              } catch {}
+              if (polls >= maxPolls) {
+                clearInterval(pollRestart)
+                addLog(`$ Timed out waiting for restart — reload manually if needed.`)
+              }
+            }, 600)
+          } else {
+            const lines = (cd.logs || '').split('\n')
+            lines.forEach((l: string) => { if (l.trim()) addLog(l) })
+            addLog(`$ ✗ Compile failed — fix the errors above and save again.`)
+          }
+        } catch (ce: any) { addLog(`$ ✗ Compile error: ${ce.message}`) }
+
+      } else if (!isJavaFile && isPreviewReady) {
+        // Vite (JS/TS/CSS/HTML): reload the iframe in-place after a short delay
+        // so chokidar (1 s poll interval) has time to detect the file change.
+        reloadPreview(1200)
       }
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
   }
@@ -235,11 +294,11 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const handlePrepareToRun = async () => {
     if (!problemDetails?.slug) return
     setSessionState('preparing'); setSessionError(null); setPreviewUrl(null); setIsPreviewReady(false)
-    setTerminalOutput([`$ Preparing: ${problemDetails.slug}`, '$ Creating workspace...'])
+    setTerminalOutput([`$ Starting: ${problemDetails.title || problemDetails.slug}...`, '$ Copying project files...'])
     try {
       const r = await fetch(`${FILE_SERVER}/run-project`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           slug: problemDetails.slug,
           runtimeEnvironment: problemDetails.projectProblem?.runtimeEnvironment
         }),
@@ -247,15 +306,10 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Failed')
 
-      // Backend now returns the correct subdomain URL (https://session-abc.cinemasync.me)
       setSessionId(d.sessionId); setPreviewUrl(d.previewUrl)
-      addLog(`$ ✓ Session: ${d.sessionId}`)
-      addLog(`$ ✓ Preview: ${d.previewUrl}`)
-      
-      const entrypoint = problemDetails.projectProblem?.runtimeEnvironment?.entrypoint || 'npm'
-      const args = problemDetails.projectProblem?.runtimeEnvironment?.args?.join(' ') || 'run dev'
-      addLog(`$ Running container with: ${entrypoint} ${args}...`)
-      
+      addLog(`$ ✓ Workspace ready`)
+      addLog(`$ Launching dev server...`)
+
       startPolling(d.sessionId, d.previewUrl)
     } catch (e: any) { setSessionError(e.message); setSessionState('idle'); addLog(`$ ✗ ${e.message}`) }
   }
@@ -263,13 +317,13 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const handleStopProject = async () => {
     if (!sessionId) return
     if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
-    setSessionState('stopping'); setIsPreviewReady(false); addLog(`$ Stopping ${sessionId}...`)
+    setSessionState('stopping'); setIsPreviewReady(false); addLog(`$ Stopping session...`)
     try {
       const d = await (await fetch(`${FILE_SERVER}/stop-project`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
       })).json()
-      addLog(`$ ✓ ${d.message || 'Stopped.'}`)
+      addLog(`$ ✓ Stopped.`)
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
     finally { setSessionId(null); setPreviewUrl(null); setSessionState('idle'); setTestState('idle'); setTestResult(null); }
   }
@@ -419,16 +473,18 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     }
 
     return (
-      <div
-        onMouseEnter={e => { e.stopPropagation(); setIsHovered(true) }}
-        onMouseLeave={e => { e.stopPropagation(); setIsHovered(false) }}
-      >
+      <div>
+        {/* Hover handlers on the SINGLE ROW div only — not the outer wrapper.
+            Children are rendered outside this div, so moving cursor to a child
+            immediately fires onMouseLeave here and sets isHovered=false. */}
         <div
           onClick={() => isFile ? handleFileClick(node) : setOpen(!open)}
+          onMouseEnter={e => { e.stopPropagation(); setIsHovered(true) }}
+          onMouseLeave={e => { e.stopPropagation(); setIsHovered(false) }}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          className={`group w-full flex items-center justify-between py-1 pr-2 text-xs transition-colors rounded-sm cursor-pointer ${isActive
-            ? 'bg-primary/15 text-primary font-medium'
-            : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'}`}
+          className={`group w-full flex items-center justify-between py-1 pr-2 text-xs transition-colors rounded-sm cursor-pointer ${
+            isActive ? 'bg-primary/15 text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+          }`}
         >
           <div className="flex items-center gap-1.5 overflow-hidden">
             {!isFile && <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />}
@@ -437,9 +493,10 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
               : <Folder className="w-3.5 h-3.5 shrink-0 text-yellow-400" />}
             <span className="truncate">{node.name}</span>
           </div>
-          
+
           {isHovered && sessionId && (
             <div className="flex items-center gap-1 shrink-0 bg-[#161b22]/90 px-1 rounded shadow-sm">
+              {/* New File / New Folder only on folder nodes */}
               {!isFile && (
                 <>
                   <IconBtn onClick={(e) => handleCreateItem(e, false)} title="New File"><FilePlus className="w-3 h-3 text-muted-foreground hover:text-white" /></IconBtn>
@@ -549,9 +606,48 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                   <FolderTree className="w-3.5 h-3.5 text-primary" />
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Explorer</span>
                 </div>
-                <IconBtn onClick={() => setShowFileTree(false)} title="Hide explorer">
-                  <PanelLeftClose className="w-3.5 h-3.5" />
-                </IconBtn>
+                <div className="flex items-center gap-0.5">
+                  {/* Root-level new file / folder buttons — visible only when a session is active */}
+                  {sessionId && (
+                    <>
+                      <IconBtn
+                        title="New File at root"
+                        onClick={async (e) => {
+                          const name = prompt('Enter new file name:')
+                          if (!name) return
+                          try {
+                            const r = await fetch(`${FILE_SERVER}/workspace/create`, {
+                              method: 'POST', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ sessionId, filePath: name, isFolder: false })
+                            })
+                            const d = await r.json()
+                            if (d.success) fetchFileTree()
+                            else addLog(`$ ✗ ${d.error}`)
+                          } catch (err: any) { addLog(`$ ✗ ${err.message}`) }
+                        }}
+                      ><FilePlus className="w-3.5 h-3.5" /></IconBtn>
+                      <IconBtn
+                        title="New Folder at root"
+                        onClick={async (e) => {
+                          const name = prompt('Enter new folder name:')
+                          if (!name) return
+                          try {
+                            const r = await fetch(`${FILE_SERVER}/workspace/create`, {
+                              method: 'POST', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ sessionId, filePath: name, isFolder: true })
+                            })
+                            const d = await r.json()
+                            if (d.success) fetchFileTree()
+                            else addLog(`$ ✗ ${d.error}`)
+                          } catch (err: any) { addLog(`$ ✗ ${err.message}`) }
+                        }}
+                      ><FolderPlus className="w-3.5 h-3.5" /></IconBtn>
+                    </>
+                  )}
+                  <IconBtn onClick={() => setShowFileTree(false)} title="Hide explorer">
+                    <PanelLeftClose className="w-3.5 h-3.5" />
+                  </IconBtn>
+                </div>
               </div>
               <div className="px-3 py-2 border-b border-[#30363d] shrink-0">
                 <Link href="/code-arena" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -633,7 +729,8 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                         lineNumbers: 'on',
                         renderLineHighlight: 'line',
                         cursorBlinking: 'smooth',
-                        smoothScrolling: true,
+                        smoothScrolling: false,
+                        cursorSmoothCaretAnimation: 'off',
                         padding: { top: 12 },
                         wordWrap: 'on',
                         tabSize: 2,
@@ -658,24 +755,34 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                           <PanelBottomClose className="w-3.5 h-3.5" />
                         </IconBtn>
                       </div>
-                      <div ref={terminalRef} className="flex-1 overflow-auto p-2 font-mono text-[11px] text-green-400 leading-relaxed pb-4">
-                        {terminalOutput.map((line, i) => <div key={i} className="whitespace-pre-wrap">{line}</div>)}
-                        {sessionState === 'running' && (
-                          <div className="flex items-center mt-1 text-green-400 w-full group">
-                            <span className="mr-2 font-bold shrink-0">$</span>
+                      <div ref={terminalRef} className="flex-1 overflow-auto p-2 font-mono text-[11px] text-green-400 leading-relaxed">
+                        {terminalOutput.map((line, i) => (
+                          <div key={i} className={`whitespace-pre-wrap ${
+                            line.startsWith('$ ✗') ? 'text-red-400' :
+                            line.startsWith('$ ✓') ? 'text-emerald-400' :
+                            line.startsWith('$ ⚠') ? 'text-yellow-400' :
+                            'text-green-400'
+                          }`}>{line}</div>
+                        ))}
+                      </div>
+                      {/* Terminal command input — larger, more prominent */}
+                      {sessionState === 'running' && (
+                        <div className="shrink-0 border-t border-[#30363d] bg-[#0d1117] px-3 py-2">
+                          <div className="flex items-center gap-2 bg-black/40 border border-[#30363d] rounded px-2 py-1.5 focus-within:border-primary/50 transition-colors">
+                            <span className="text-green-400 font-bold font-mono text-[11px] shrink-0">$</span>
                             <input
                               type="text"
                               value={terminalInput}
                               onChange={e => setTerminalInput(e.target.value)}
                               onKeyDown={handleTerminalInput}
-                              className="bg-transparent border-none outline-none flex-1 text-green-400 w-full focus:ring-0 shadow-none font-mono text-[11px]"
-                              placeholder="Enter command (e.g., npm install package)"
+                              className="bg-transparent border-none outline-none flex-1 text-green-400 focus:ring-0 shadow-none font-mono text-[11px] py-0.5"
+                              placeholder="Type a command and press Enter..."
                               spellCheck={false}
                               autoComplete="off"
                             />
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </Panel>
                   </>
                 )}
@@ -741,7 +848,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                       )}
                       {isPreviewReady && previewUrl && (
                         <IconBtn
-                          onClick={() => { setIsPreviewReady(false); setTimeout(() => setIsPreviewReady(true), 100) }}
+                          onClick={() => reloadPreview()}
                           title="Refresh preview"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
@@ -783,7 +890,22 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                       </div>
                     )}
                     {previewUrl && isPreviewReady && (
-                      <iframe src={`${previewUrl}${previewPath === '/' ? '' : previewPath}`} className="w-full h-full border-0" title="Project Preview" />
+                      <div className="relative w-full h-full">
+                        {/* Loading overlay — shows while iframe navigates after a save */}
+                        {isPreviewLoading && (
+                          <div className="absolute inset-0 bg-[#0d1117]/75 flex flex-col items-center justify-center z-10 backdrop-blur-[2px]">
+                            <Loader2 className="w-7 h-7 animate-spin text-primary mb-2" />
+                            <p className="text-xs text-muted-foreground">Reloading preview…</p>
+                          </div>
+                        )}
+                        <iframe
+                          ref={iframeRef}
+                          src={`${previewUrl}${previewPath === '/' ? '' : previewPath}`}
+                          className="w-full h-full border-0"
+                          title="Project Preview"
+                          onLoad={() => setIsPreviewLoading(false)}
+                        />
+                      </div>
                     )}
                    
                   </div>
