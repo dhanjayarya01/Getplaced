@@ -146,67 +146,66 @@ export default function JobsPage() {
 
 
   return (
-    <main className="min-h-screen bg-background flex flex-col">
+    <main className="bg-background">
       <Navbar />
-      <div className="pt-20 flex-1">
-        {/* Simplified Hero for Jobs */}
-        <section className="relative overflow-hidden bg-background pt-16 pb-12 border-b border-border">
-            <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-30 pointer-events-none">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 blur-3xl rounded-full" />
-            </div>
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary mb-6 border border-primary/20">
-                <Briefcase className="w-4 h-4" />
-                <span className="text-sm font-semibold">Latest Opportunities</span>
-                </div>
-                
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-                Find Your Next <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">Dream Job</span>
-                </h1>
-                
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Discover the latest roles at top tech companies. Scraped in real-time to keep you ahead of the competition.
-                </p>
+      {/* Hero + search bar — scroll away naturally */}
+      <div className="pt-16">
+        <section className="relative overflow-hidden bg-background pt-16 pb-12 border-b border-border">
+          <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-30 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-blue-500/20 to-purple-500/20 blur-3xl rounded-full" />
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary mb-6 border border-primary/20">
+              <Briefcase className="w-4 h-4" />
+              <span className="text-sm font-semibold">Latest Opportunities</span>
             </div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+              Find Your Next <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">Dream Job</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Discover the latest roles at top tech companies. Scraped in real-time to keep you ahead of the competition.
+            </p>
+          </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            
-          {/* Search Bar */}
-          <div className="bg-card rounded-2xl border border-border p-6 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-card rounded-2xl border border-border p-6">
             <h2 className="text-xl font-bold mb-4">Search Job Postings</h2>
             <div className="relative flex items-center">
-                 <Search className="absolute left-4 w-5 h-5 text-muted-foreground" />
-                 <input 
-                    className="flex h-14 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-lg shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary pl-12"
-                    placeholder="Search by role, company, location, or keywords..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                 />
-            </div>
-          </div>
-
-          <div className="grid lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-3">
-              <JobList 
-                jobs={jobs} 
-                loading={isLoading} 
+              <Search className="absolute left-4 w-5 h-5 text-muted-foreground" />
+              <input
+                className="flex h-14 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-lg shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary pl-12"
+                placeholder="Search by role, company, location, or keywords..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
-            <aside className="lg:col-span-1 space-y-6">
-                <div className="bg-card border border-border rounded-xl p-6 sticky top-24">
-                    <h3 className="font-bold text-lg mb-4">Filters</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Advanced filtering options coming soon.</p>
-                </div>
-                <ResumeSection />
-            </aside>
           </div>
         </div>
       </div>
-      <Footer />
+
+      {/* Sticky two-column layout */}
+      <div className="sticky top-16 h-[calc(100vh-4rem)] flex overflow-hidden border-t border-border bg-background">
+        {/* Job list */}
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            <JobList jobs={jobs} loading={isLoading} />
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="w-72 shrink-0 overflow-y-auto no-scrollbar border-l border-border">
+          <div className="p-6 space-y-6">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="font-bold text-lg mb-4">Filters</h3>
+              <p className="text-sm text-muted-foreground">Advanced filtering options coming soon.</p>
+            </div>
+            <ResumeSection />
+          </div>
+        </aside>
+      </div>
     </main>
   )
 }

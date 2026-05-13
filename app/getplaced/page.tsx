@@ -50,41 +50,46 @@ export default function GetPlacedPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="bg-background">
       <Navbar />
-      <div className="pt-20">
+
+      {/* Hero + search bar — scroll away naturally */}
+      <div className="pt-16">
         <GetPlacedHero />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            
-          {/* We pass props to Search to control it from here */}
-          <div className="bg-card rounded-2xl border border-border p-6 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-card rounded-2xl border border-border p-6">
             <h2 className="text-xl font-bold mb-4">Find Your Target Company</h2>
-            <div className="relative">
-                 <input 
-                    className="flex h-12 w-full rounded-md border border-input bg-transparent px-3 py-1 text-lg shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-4"
-                    placeholder="Search companies (e.g., Google, TCS, Infosys...)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                 />
-            </div>
-          </div>
-
-          <div className="grid lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-3">
-              <CompanyList 
-                companies={companies} 
-                loading={isLoading} 
-                error={error?.message || null} 
-                onRetry={() => refetch()} 
-              />
-            </div>
-
-            <aside className="lg:col-span-1 space-y-6">
-                <CompanyFilters filters={filters} setFilters={setFilters} onClear={clearFilters} />
-                <ResumeSection />
-            </aside>
+            <input
+              className="flex h-12 w-full rounded-md border border-input bg-transparent px-4 py-1 text-lg shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="Search companies (e.g., Google, TCS, Infosys...)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
+      </div>
+
+      {/* Sticky two-column layout */}
+      <div className="sticky top-16 h-[calc(100vh-4rem)] flex overflow-hidden border-t border-border bg-background">
+        {/* Companies list */}
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="px-6 py-6">
+            <CompanyList
+              companies={companies}
+              loading={isLoading}
+              error={error?.message || null}
+              onRetry={() => refetch()}
+            />
+          </div>
+        </div>
+
+        {/* Filter + resume sidebar */}
+        <aside className="w-72 shrink-0 overflow-y-auto no-scrollbar border-l border-border">
+          <div className="p-6 space-y-6">
+            <CompanyFilters filters={filters} setFilters={setFilters} onClear={clearFilters} />
+            <ResumeSection />
+          </div>
+        </aside>
       </div>
       <Footer />
     </main>

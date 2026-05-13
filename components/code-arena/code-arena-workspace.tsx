@@ -36,6 +36,9 @@ function getLanguage(filename: string): string {
     js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
     html: 'html', css: 'css', scss: 'scss', json: 'json',
     md: 'markdown', py: 'python', sh: 'shell', yaml: 'yaml', yml: 'yaml',
+    java: 'java', xml: 'xml', properties: 'ini', sql: 'sql',
+    c: 'c', cpp: 'cpp', cs: 'csharp', go: 'go', rs: 'rust', rb: 'ruby',
+    php: 'php', swift: 'swift', kt: 'kotlin',
   }
   return map[ext] || 'plaintext'
 }
