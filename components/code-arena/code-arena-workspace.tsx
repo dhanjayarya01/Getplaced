@@ -183,11 +183,22 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const handleSave = async () => {
     if (!sessionId || !activeFilePath) return
     try {
-      await fetch(`${FILE_SERVER}/save-file`, {
+      const res = await fetch(`${FILE_SERVER}/save-file`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, filePath: activeFilePath, content: code }),
       })
-      addLog(`$ ✓ Saved: ${activeFilePath} → reloading...`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Save failed' }))
+        addLog(`$ ✗ Save failed: ${err.error || res.statusText}`)
+        return
+      }
+      addLog(`$ ✓ Saved: ${activeFilePath} — refreshing preview...`)
+      // Give Vite's chokidar polling (1 s interval) time to detect the file
+      // change, then force-reload the iframe by toggling isPreviewReady.
+      if (isPreviewReady) {
+        setIsPreviewReady(false)
+        setTimeout(() => setIsPreviewReady(true), 800)
+      }
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
   }
 
