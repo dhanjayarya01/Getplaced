@@ -122,14 +122,13 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState(jobData)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Filter jobs based on search query
   useEffect(() => {
     setIsLoading(true);
     const timeout = setTimeout(() => {
       if (debouncedSearch) {
         const lowerSearch = debouncedSearch.toLowerCase();
-        const filtered = jobData.filter(job => 
-          job.title.toLowerCase().includes(lowerSearch) || 
+        const filtered = jobData.filter(job =>
+          job.title.toLowerCase().includes(lowerSearch) ||
           job.company.toLowerCase().includes(lowerSearch) ||
           job.location.toLowerCase().includes(lowerSearch) ||
           job.description.toLowerCase().includes(lowerSearch)
@@ -140,16 +139,14 @@ export default function JobsPage() {
       }
       setIsLoading(false);
     }, 200);
-
     return () => clearTimeout(timeout);
   }, [debouncedSearch]);
 
-
   return (
-    <main className="bg-background">
+    <div className="h-screen overflow-y-auto no-scrollbar bg-background">
       <Navbar />
 
-      {/* Hero + search bar — scroll away naturally */}
+      {/* Hero — scrolls away */}
       <div className="pt-16">
         <section className="relative overflow-hidden bg-background pt-16 pb-12 border-b border-border">
           <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
@@ -169,43 +166,37 @@ export default function JobsPage() {
             </p>
           </div>
         </section>
+      </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Sticky two-column layout */}
+      <div className="sticky top-16 h-[calc(100vh-4rem)] flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-8 overflow-hidden">
+        {/* Main content */}
+        <div className="flex-1 overflow-y-auto no-scrollbar py-6 space-y-6">
+          {/* Search Bar */}
           <div className="bg-card rounded-2xl border border-border p-6">
             <h2 className="text-xl font-bold mb-4">Search Job Postings</h2>
             <div className="relative flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-muted-foreground" />
               <input
-                className="flex h-14 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-lg shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary pl-12"
+                className="flex h-14 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-lg shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary pl-12"
                 placeholder="Search by role, company, location, or keywords..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Sticky two-column layout */}
-      <div className="sticky top-16 h-[calc(100vh-4rem)] flex overflow-hidden border-t border-border bg-background">
-        {/* Job list */}
-        <div className="flex-1 overflow-y-auto no-scrollbar">
-          <div className="max-w-4xl mx-auto px-6 py-6">
-            <JobList jobs={jobs} loading={isLoading} />
-          </div>
+          <JobList jobs={jobs} loading={isLoading} />
         </div>
 
-        {/* Sidebar */}
-        <aside className="w-72 shrink-0 overflow-y-auto no-scrollbar border-l border-border">
-          <div className="p-6 space-y-6">
-            <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="font-bold text-lg mb-4">Filters</h3>
-              <p className="text-sm text-muted-foreground">Advanced filtering options coming soon.</p>
-            </div>
-            <ResumeSection />
+        {/* Filter sidebar */}
+        <aside className="w-72 shrink-0 overflow-y-auto no-scrollbar py-6 space-y-6">
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-bold text-lg mb-4">Filters</h3>
+            <p className="text-sm text-muted-foreground mb-4">Advanced filtering options coming soon.</p>
           </div>
+          <ResumeSection />
         </aside>
       </div>
-    </main>
+    </div>
   )
 }

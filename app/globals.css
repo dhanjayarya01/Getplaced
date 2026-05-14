@@ -170,7 +170,13 @@
   }
 }
 
-/* Hide scrollbar while keeping scroll functionality.
-   Apply the .no-scrollbar class to any independently-scrolling column. */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* ── Hide scrollbars while keeping scroll functionality ─────────────────────
+   Used by the sticky two-column layout on /dsa, /code-arena, /getplaced, /jobs.
+   Scrollbars are hidden visually but the container is still scrollable. */
+.no-scrollbar {
+  -ms-overflow-style: none;   /* IE / Edge */
+  scrollbar-width: none;       /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;               /* Chrome / Safari / Opera */
+}
