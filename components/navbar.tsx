@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Menu, X, Zap, LogOut, User, LayoutDashboard, Settings } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { JobNotificationBell } from "@/components/job-notification-bell"
 import Image from "next/image"
 import {
   DropdownMenu,
@@ -68,6 +69,7 @@ export function Navbar() {
 
           <div className="hidden md:flex items-center gap-3">
             <ThemeToggle />
+            <JobNotificationBell />
             {loading ? (
               <div className="h-9 w-24 bg-secondary animate-pulse rounded-lg" />
             ) : isAuthenticated && user ? (

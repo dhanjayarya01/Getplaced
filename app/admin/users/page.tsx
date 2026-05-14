@@ -29,6 +29,11 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
 
+  const [emailModal, setEmailModal] = useState({ isOpen: false, targetUserId: null as string | null, targetName: '', isSending: false })
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailBody, setEmailBody] = useState('')
+  const [queueStatus, setQueueStatus] = useState<{ wait: number, active: number, completed: number, failed: number } | null>(null)
+
   const limit = 20
 
   const fetchUsers = useCallback(async () => {
@@ -65,6 +70,54 @@ export default function AdminUsersPage() {
     fetchUsers()
   }
 
+  const sendEmail = async () => {
+    if (!emailSubject || !emailBody) return alert('Subject and Body are required')
+    setEmailModal(prev => ({ ...prev, isSending: true }))
+    try {
+      const res = await adminFetch(`/api/admin/users/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds: emailModal.targetUserId ? [emailModal.targetUserId] : [],
+          sendToAll: !emailModal.targetUserId,
+          subject: emailSubject,
+          html: emailBody
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        // Just clear the form, the polling effect will show the queue status
+        setEmailSubject('')
+        setEmailBody('')
+      } else {
+        alert(data.message)
+      }
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setEmailModal(prev => ({ ...prev, isSending: false }))
+    }
+  }
+
+  // Poll queue status every 2s
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await adminFetch('/api/admin/users/email/status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) setQueueStatus(data.counts)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
   const pages = Math.ceil(total / limit)
   const visible = search
     ? users.filter(u =>
@@ -85,9 +138,14 @@ export default function AdminUsersPage() {
             {total.toLocaleString()} registered users
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="default" size="sm" onClick={() => setEmailModal({ isOpen: true, targetUserId: null, targetName: 'All Users', isSending: false })} className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600">
+            <Mail className="w-4 h-4" /> Email All Users
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Error */}
@@ -233,6 +291,11 @@ export default function AdminUsersPage() {
                             <User className="w-3 h-3" /> Remove Admin
                           </Button>
                         )}
+                        <Button size="sm" variant="outline"
+                          className="h-7 text-xs gap-1 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                          onClick={() => setEmailModal({ isOpen: true, targetUserId: u._id, targetName: u.name || u.email, isSending: false })}>
+                          <Mail className="w-3 h-3" /> Email
+                        </Button>
                         {u.isActive !== false && (
                           <Button size="sm" variant="outline"
                             className="h-7 text-xs gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
@@ -274,6 +337,72 @@ export default function AdminUsersPage() {
               onClick={() => setPage(p => p + 1)} className="gap-1">
               Next <ChevronRight className="w-4 h-4" />
             </Button>
+          </div>
+        </div>
+      )}
+      {/* Email Modal */}
+      {emailModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border shadow-lg rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                Draft Email to {emailModal.targetName}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {emailModal.targetUserId ? 'This will send a direct email to the selected user.' : 'Warning: This will send an email to ALL active users.'}
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block text-muted-foreground">Subject</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+                  placeholder="e.g., Important Platform Update"
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block text-muted-foreground">HTML Body</label>
+                <textarea
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background h-32 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow resize-none"
+                  placeholder="<p>Hello there...</p>"
+                  value={emailBody}
+                  onChange={e => setEmailBody(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-border bg-muted/20 flex flex-col items-end gap-2">
+              <div className="flex gap-3 w-full justify-end">
+                <Button variant="outline" onClick={() => setEmailModal({ isOpen: false, isSending: false })}>
+                  Close
+                </Button>
+                <Button onClick={sendEmail} disabled={emailModal.isSending || !emailSubject || !emailBody} className="gap-2">
+                  {emailModal.isSending ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin" /> Queuing...</>
+                  ) : (
+                    <><Mail className="w-4 h-4" /> Send Email</>
+                  )}
+                </Button>
+              </div>
+              
+              {queueStatus && (queueStatus.active > 0 || queueStatus.wait > 0 || queueStatus.completed > 0 || queueStatus.failed > 0) && (
+                <div className="text-xs font-medium flex items-center gap-1.5 mt-1">
+                  Queue Status: 
+                  {(queueStatus.active > 0 || queueStatus.wait > 0) ? (
+                    <span className="text-red-500 animate-pulse bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                      {queueStatus.completed}/{queueStatus.completed + queueStatus.wait + queueStatus.active} sending...
+                    </span>
+                  ) : (
+                    <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      {queueStatus.completed}/{queueStatus.completed} completed
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

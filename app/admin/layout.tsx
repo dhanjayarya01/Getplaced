@@ -52,6 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/mock-interviews', icon: MessageSquare, label: 'Mock Interviews' },
     { href: '/admin/users', icon: Users, label: 'Users' },
     { href: '/admin/cache', icon: Database, label: 'Redis Cache' },
+    { href: '/admin/job-recommendations', icon: Briefcase, label: 'Job Recommendations' },
   ]
 
   return (
