@@ -36,9 +36,6 @@ function getLanguage(filename: string): string {
     js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
     html: 'html', css: 'css', scss: 'scss', json: 'json',
     md: 'markdown', py: 'python', sh: 'shell', yaml: 'yaml', yml: 'yaml',
-    java: 'java', xml: 'xml', properties: 'ini', sql: 'sql',
-    c: 'c', cpp: 'cpp', cs: 'csharp', go: 'go', rs: 'rust', rb: 'ruby',
-    php: 'php', swift: 'swift', kt: 'kotlin',
   }
   return map[ext] || 'plaintext'
 }
@@ -171,6 +168,107 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       fetchFileTree();
     }
   }, [fetchFileTree, problemDetails?.slug])
+
+  // ── SESSION RECONNECT ON REFRESH ──────────────────────────────────────────
+  // When the problem loads, check if there's a persisted session in sessionStorage
+  // from before the page refresh. If the server confirms it's still running,
+  // silently reconnect — no need to start a new container.
+  useEffect(() => {
+    if (!problemDetails || sessionId) return // already have a session, skip
+
+    const stored = sessionStorage.getItem(`arena-session-${problemId}`)
+    if (!stored) return
+
+    let parsed: { sessionId: string; previewUrl: string }
+    try { parsed = JSON.parse(stored) } catch { sessionStorage.removeItem(`arena-session-${problemId}`); return }
+
+    const { sessionId: storedSid, previewUrl: storedUrl } = parsed
+    if (!storedSid || !storedUrl) { sessionStorage.removeItem(`arena-session-${problemId}`); return }
+
+    // Verify the session is still alive on the server
+    ;(async () => {
+      try {
+        const res = await fetch(`${FILE_SERVER}/status/${storedSid}`)
+
+        if (res.ok) {
+          const data = await res.json()
+          // Session is still running — reconnect silently
+          setSessionId(storedSid)
+          setPreviewUrl(storedUrl)
+          setSessionState('running')
+          if (data.ready) {
+            setIsPreviewReady(true)
+            addLog(`$ ♻️  Reconnected to running session`)
+            addLog(`$ ✓ Dev server is live!`)
+          } else {
+            // Container running but dev server not ready yet — resume polling
+            addLog(`$ ♻️  Reconnected — dev server still starting...`)
+            startPolling(storedSid, storedUrl)
+          }
+        } else {
+          // 404 = session is gone (stopped or timed out between refresh)
+          sessionStorage.removeItem(`arena-session-${problemId}`)
+          addLog(`$ 💡 Previous session has ended. Click "Prepare to Run" to start a new one.`)
+        }
+      } catch {
+        // Dev server unreachable — clear storage, show idle
+        sessionStorage.removeItem(`arena-session-${problemId}`)
+      }
+    })()
+  }, [problemDetails, problemId]) // Run once when problem loads
+
+  // ── HEARTBEAT ─────────────────────────────────────────────────────────────
+  // While a container is running, ping the dev server every 30s.
+  // Server responds with remaining session time and a warning flag.
+  // If the server returns 404 (terminated), we reset the UI to idle.
+  // We send immediately when the tab becomes visible again after being hidden.
+  useEffect(() => {
+    if (sessionState !== 'running' || !sessionId) return
+
+    const sendBeat = async () => {
+      if (document.visibilityState !== 'visible') return // tab is hidden — skip
+      try {
+        const res = await fetch(`${FILE_SERVER}/heartbeat/${sessionId}`, { method: 'POST' })
+
+        if (res.status === 404) {
+          // Server auto-stopped this session (idle timeout or hard cap)
+          const data = await res.json()
+          addLog(`$ ⏹ ${data.message || 'Session was auto-stopped by the server.'}`)
+          addLog(`$ 💡 Click "Prepare to Run" to start a new session.`)
+          sessionStorage.removeItem(`arena-session-${problemId}`) // clear persisted session
+          setSessionState('idle')
+          setSessionId(null)
+          setPreviewUrl(null)
+          setIsPreviewReady(false)
+          return
+        }
+
+        const data = await res.json()
+        // Show a warning toast in the terminal when < 2 min remain
+        if (data.warning && data.warningMessage) {
+          addLog(`$ ⚠️  ${data.warningMessage} — save your work!`)
+        }
+      } catch {
+        // Non-fatal — server may be temporarily unreachable. Next beat will retry.
+      }
+    }
+
+    // Send immediately when session starts
+    sendBeat()
+
+    // Send every 30s via interval
+    const interval = setInterval(sendBeat, 30_000)
+
+    // Also send immediately when the tab regains focus after being hidden.
+    // This resets the idle clock right away instead of waiting up to 30s.
+    const onVisible = () => { if (document.visibilityState === 'visible') sendBeat() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [sessionState, sessionId])
 
   const handleFileClick = async (node: FileNode) => {
     if (node.type === 'directory' || !problemDetails?.slug) return
@@ -321,6 +419,8 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       if (!r.ok) throw new Error(d.error || 'Failed')
 
       setSessionId(d.sessionId); setPreviewUrl(d.previewUrl)
+      // Persist session so a page refresh can reconnect instead of starting fresh
+      sessionStorage.setItem(`arena-session-${problemId}`, JSON.stringify({ sessionId: d.sessionId, previewUrl: d.previewUrl }))
       addLog(`$ ✓ Workspace ready`)
       addLog(`$ Launching dev server...`)
 
@@ -333,13 +433,16 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
     setSessionState('stopping'); setIsPreviewReady(false); addLog(`$ Stopping session...`)
     try {
-      const d = await (await fetch(`${FILE_SERVER}/stop-project`, {
+      await fetch(`${FILE_SERVER}/stop-project`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
-      })).json()
+      })
       addLog(`$ ✓ Stopped.`)
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
-    finally { setSessionId(null); setPreviewUrl(null); setSessionState('idle'); setTestState('idle'); setTestResult(null); }
+    finally {
+      sessionStorage.removeItem(`arena-session-${problemId}`) // clear persisted session
+      setSessionId(null); setPreviewUrl(null); setSessionState('idle'); setTestState('idle'); setTestResult(null);
+    }
   }
 
   const handleRunTests = async () => {
