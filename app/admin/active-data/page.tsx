@@ -18,10 +18,16 @@ const backendFetch = (path: string) =>
   fetch(`${BACKEND}${path}`, { credentials: 'include' }).catch(() => null)
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function toNum(v: any): number { return Number(v) || 0 }
+function getTimestamp(v: any): number {
+  if (!v) return 0
+  const n = Number(v)
+  if (!Number.isNaN(n)) return n
+  const d = new Date(v).getTime()
+  return Number.isNaN(d) ? 0 : d
+}
 
 function fmtUptime(startedAt: any): string {
-  const ts = toNum(startedAt)
+  const ts = getTimestamp(startedAt)
   if (!ts) return '—'
   const secs = Math.floor((Date.now() - ts) / 1000)
   if (secs < 0)  return '—'
@@ -32,7 +38,7 @@ function fmtUptime(startedAt: any): string {
 }
 
 function fmtMs(ms: any): string {
-  const n = toNum(ms)
+  const n = Number(ms) || 0
   if (!n) return '—'
   const secs = Math.floor(n / 1000)
   const m = Math.floor(secs / 60), s = secs % 60
@@ -40,7 +46,7 @@ function fmtMs(ms: any): string {
 }
 
 function fmtIdle(lastBeat: any, startedAt: any): string {
-  const ts = toNum(lastBeat) || toNum(startedAt)
+  const ts = getTimestamp(lastBeat) || getTimestamp(startedAt)
   if (!ts) return '—'
   return fmtMs(Date.now() - ts)
 }
@@ -212,7 +218,7 @@ export default function ActiveDataPage() {
             <div className="space-y-3">
               {sessions.map((s: any) => {
                 const hidden    = !!s.tabHiddenAt
-                const hiddenMs  = hidden ? now - toNum(s.tabHiddenAt) : 0
+                const hiddenMs  = hidden ? now - getTimestamp(s.tabHiddenAt) : 0
                 const graceLeft = Math.max(0, 60_000 - hiddenMs)
                 const isDanger  = hidden && graceLeft < 15_000
                 const isWarn    = hidden && graceLeft < 30_000
