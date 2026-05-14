@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Navbar } from "@/components/navbar"
-import { LayoutDashboard, Code, Briefcase, Building2, MessageSquare, Users, LogOut } from "lucide-react"
+import { LayoutDashboard, Code, Briefcase, Building2, MessageSquare, Users, LogOut, Activity, Database } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -45,11 +45,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/admin/active-data', icon: Activity, label: 'Active Data' },
     { href: '/admin/dsa', icon: Code, label: 'DSA Problems' },
     { href: '/admin/development', icon: Briefcase, label: 'Dev Problems' },
     { href: '/admin/companies', icon: Building2, label: 'Companies' },
     { href: '/admin/mock-interviews', icon: MessageSquare, label: 'Mock Interviews' },
     { href: '/admin/users', icon: Users, label: 'Users' },
+    { href: '/admin/cache', icon: Database, label: 'Redis Cache' },
   ]
 
   return (

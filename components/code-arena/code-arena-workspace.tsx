@@ -226,11 +226,13 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   useEffect(() => {
     if (sessionState !== 'running' || !sessionId) return
 
-    const sendBeat = async () => {
-      if (document.visibilityState !== 'visible') return
+    const sendBeat = async (tabHidden = false) => {
       try {
-        const res = await fetch(`${FILE_SERVER}/heartbeat/${sessionId}`, { method: 'POST' })
-
+        const res = await fetch(`${FILE_SERVER}/heartbeat/${sessionId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tabHidden }),
+        })
         if (res.status === 404) {
           const data = await res.json()
           addLog(`$ ⏹ ${data.message || 'Session was auto-stopped by the server.'}`)
@@ -244,7 +246,6 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
           setIsPreviewReady(false)
           return
         }
-
         const data = await res.json()
         if (typeof data.remainingMs === 'number') setSessionRemainingMs(data.remainingMs)
         if (data.warning && data.warningMessage) {
@@ -255,11 +256,22 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       }
     }
 
-    sendBeat()
-    const interval = setInterval(sendBeat, 30_000)
-    const onVisible = () => { if (document.visibilityState === 'visible') sendBeat() }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible) }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        sendBeat(true)  // tell server tab is gone — starts 1-min grace timer
+        addLog(`$ 🔴 Tab hidden — container stops in ~1 min if you don't return`)
+      } else {
+        sendBeat(false) // tab returned — cancel grace timer
+        addLog(`$ 🟢 Tab active — grace timer cancelled`)
+      }
+    }
+
+    sendBeat(false)   // initial beat on mount — tab is visible
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') sendBeat(false)
+    }, 30_000)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange) }
   }, [sessionState, sessionId])
 
   // ── UPTIME TICKER ─────────────────────────────────────────────────────────
