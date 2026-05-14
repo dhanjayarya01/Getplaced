@@ -111,6 +111,7 @@ export default function ActiveDataPage() {
   const [cacheHealth,   setCacheHealth]   = useState<any>(null)
   const [bullmq,        setBullmq]        = useState<any>(null)
   const [loading,       setLoading]       = useState(true)
+  const [killing,       setKilling]       = useState<Record<string, boolean>>({})
   const [lastRefresh,   setLastRefresh]   = useState<Date>(new Date())
   const [tick,          setTick]          = useState(0)
 
@@ -159,11 +160,20 @@ export default function ActiveDataPage() {
   }, [fetchAll])
 
   const killSession = async (sessionId: string) => {
-    await fetch(`${FILE_SERVER}/stop-project`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    }).catch(() => {})
-    fetchAll()
+    setKilling(prev => ({ ...prev, [sessionId]: true }))
+    try {
+      await fetch(`${FILE_SERVER}/stop-project`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+    } finally {
+      await fetchAll()
+      setKilling(prev => {
+        const next = { ...prev }
+        delete next[sessionId]
+        return next
+      })
+    }
   }
 
   const now = Date.now()
@@ -250,8 +260,9 @@ export default function ActiveDataPage() {
                     <span className={`text-xs font-medium px-2 py-1 rounded-full shrink-0 ${hidden ? 'bg-orange-500/10 text-orange-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
                       {hidden ? '⏸ Grace' : '● Active'}
                     </span>
-                    <Button size="sm" variant="destructive" className="h-7 text-xs shrink-0 gap-1" onClick={() => killSession(s.sessionId)}>
-                      <Square className="w-3 h-3" /> Kill
+                    <Button size="sm" variant="destructive" className="h-7 text-xs shrink-0 gap-1" disabled={killing[s.sessionId]} onClick={() => killSession(s.sessionId)}>
+                      {killing[s.sessionId] ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3" />}
+                      Kill
                     </Button>
                   </div>
                 )

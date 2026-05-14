@@ -125,6 +125,40 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     if (terminalRef.current) terminalRef.current.scrollTop = terminalRef.current.scrollHeight
   }, [terminalOutput])
 
+  // ── HEARTBEAT ─────────────────────────────────────────────────────────────
+  // Send a ping every 30s to keep the session alive.
+  // Pause the heartbeat (by sending tabHidden: true) when the tab goes out of view.
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const ping = async (tabHidden = document.visibilityState === 'hidden') => {
+      try {
+        await fetch(`${FILE_SERVER}/heartbeat/${sessionId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tabHidden })
+        });
+      } catch (e) {
+        // silently fail on heartbeat
+      }
+    };
+
+    // Initial ping
+    ping();
+
+    // Ping every 30 seconds
+    const interval = setInterval(() => ping(), 30_000);
+
+    // Watch for tab visibility changes
+    const onVisibilityChange = () => ping(document.visibilityState === 'hidden');
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [sessionId]);
+
   const addLog = (line: string) => setTerminalOutput(prev => [...prev, line])
 
   const fetchFileTree = useCallback(async () => {
