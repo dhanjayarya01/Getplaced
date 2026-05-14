@@ -61,6 +61,11 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const editorRef = useRef<any>(null) // Monaco editor instance ref
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
 
+  // Session timer state
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null)  // ms timestamp
+  const [sessionUptimeSecs, setSessionUptimeSecs] = useState(0)                  // live uptime counter
+  const [sessionRemainingMs, setSessionRemainingMs] = useState<number | null>(null) // from heartbeat
+
   const [testState, setTestState] = useState<'idle' | 'running' | 'done'>('idle')
   const [testResult, setTestResult] = useState<{ success: boolean; logs: string } | null>(null)
   const [showTestModal, setShowTestModal] = useState(false)
@@ -218,24 +223,21 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   }, [problemDetails, problemId]) // Run once when problem loads
 
   // ── HEARTBEAT ─────────────────────────────────────────────────────────────
-  // While a container is running, ping the dev server every 30s.
-  // Server responds with remaining session time and a warning flag.
-  // If the server returns 404 (terminated), we reset the UI to idle.
-  // We send immediately when the tab becomes visible again after being hidden.
   useEffect(() => {
     if (sessionState !== 'running' || !sessionId) return
 
     const sendBeat = async () => {
-      if (document.visibilityState !== 'visible') return // tab is hidden — skip
+      if (document.visibilityState !== 'visible') return
       try {
         const res = await fetch(`${FILE_SERVER}/heartbeat/${sessionId}`, { method: 'POST' })
 
         if (res.status === 404) {
-          // Server auto-stopped this session (idle timeout or hard cap)
           const data = await res.json()
           addLog(`$ ⏹ ${data.message || 'Session was auto-stopped by the server.'}`)
           addLog(`$ 💡 Click "Prepare to Run" to start a new session.`)
-          sessionStorage.removeItem(`arena-session-${problemId}`) // clear persisted session
+          sessionStorage.removeItem(`arena-session-${problemId}`)
+          setSessionRemainingMs(null)
+          setSessionStartedAt(null)
           setSessionState('idle')
           setSessionId(null)
           setPreviewUrl(null)
@@ -244,31 +246,33 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         }
 
         const data = await res.json()
-        // Show a warning toast in the terminal when < 2 min remain
+        if (typeof data.remainingMs === 'number') setSessionRemainingMs(data.remainingMs)
         if (data.warning && data.warningMessage) {
           addLog(`$ ⚠️  ${data.warningMessage} — save your work!`)
         }
       } catch {
-        // Non-fatal — server may be temporarily unreachable. Next beat will retry.
+        // Non-fatal — next beat will retry
       }
     }
 
-    // Send immediately when session starts
     sendBeat()
-
-    // Send every 30s via interval
     const interval = setInterval(sendBeat, 30_000)
-
-    // Also send immediately when the tab regains focus after being hidden.
-    // This resets the idle clock right away instead of waiting up to 30s.
     const onVisible = () => { if (document.visibilityState === 'visible') sendBeat() }
     document.addEventListener('visibilitychange', onVisible)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible) }
   }, [sessionState, sessionId])
+
+  // ── UPTIME TICKER ─────────────────────────────────────────────────────────
+  // Counts up every second while a session is running to drive the live timer badge.
+  useEffect(() => {
+    if (sessionState !== 'running') { setSessionUptimeSecs(0); return }
+    const tick = setInterval(() => {
+      setSessionUptimeSecs(s => s + 1)
+      // Also count down remaining time locally between heartbeats
+      setSessionRemainingMs(r => r !== null ? Math.max(0, r - 1000) : r)
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [sessionState])
 
   const handleFileClick = async (node: FileNode) => {
     if (node.type === 'directory' || !problemDetails?.slug) return
@@ -419,6 +423,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       if (!r.ok) throw new Error(d.error || 'Failed')
 
       setSessionId(d.sessionId); setPreviewUrl(d.previewUrl)
+      setSessionStartedAt(Date.now()); setSessionUptimeSecs(0); setSessionRemainingMs(null)
       // Persist session so a page refresh can reconnect instead of starting fresh
       sessionStorage.setItem(`arena-session-${problemId}`, JSON.stringify({ sessionId: d.sessionId, previewUrl: d.previewUrl }))
       addLog(`$ ✓ Workspace ready`)
@@ -440,8 +445,10 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       addLog(`$ ✓ Stopped.`)
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
     finally {
-      sessionStorage.removeItem(`arena-session-${problemId}`) // clear persisted session
-      setSessionId(null); setPreviewUrl(null); setSessionState('idle'); setTestState('idle'); setTestResult(null);
+      sessionStorage.removeItem(`arena-session-${problemId}`)
+      setSessionId(null); setPreviewUrl(null); setSessionState('idle');
+      setSessionStartedAt(null); setSessionUptimeSecs(0); setSessionRemainingMs(null)
+      setTestState('idle'); setTestResult(null);
     }
   }
 
@@ -696,7 +703,36 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
             <h1 className="text-sm font-semibold leading-tight">{problemDetails?.title || problemId}</h1>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{problemDetails?.slug || 'Loading...'}</span>
-              {sessionId && <span className="text-xs text-emerald-400">● Live</span>}
+              {sessionId && (
+                <div className="flex items-center gap-1.5">
+                  {/* Live dot + uptime */}
+                  <span className="flex items-center gap-1 text-xs text-emerald-400 font-mono">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    {(() => {
+                      const m = Math.floor(sessionUptimeSecs / 60).toString().padStart(2, '0')
+                      const s = (sessionUptimeSecs % 60).toString().padStart(2, '0')
+                      return `${m}:${s}`
+                    })()}
+                  </span>
+                  {/* Remaining time badge */}
+                  {sessionRemainingMs !== null && (() => {
+                    const mins = Math.ceil(sessionRemainingMs / 60000)
+                    const isWarning = sessionRemainingMs < 5 * 60 * 1000
+                    const isDanger  = sessionRemainingMs < 2 * 60 * 1000
+                    const color = isDanger ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                                : isWarning ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
+                                : 'bg-emerald-500/10 text-emerald-400/70 border-emerald-500/20'
+                    return (
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${color}`}>
+                        {mins}m left
+                      </span>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>
