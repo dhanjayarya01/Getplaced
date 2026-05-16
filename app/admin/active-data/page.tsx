@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 // ── API endpoints ──────────────────────────────────────────────────────────
 const FILE_SERVER  = process.env.NEXT_PUBLIC_FILE_SERVER  || process.env.NEXT_PUBLIC_FILE_SERVER_URL  || 'http://localhost:5008'
 const BACKEND      = process.env.NEXT_PUBLIC_API_URL      || 'http://localhost:5000'
-const DSA_WORKER   = process.env.NEXT_PUBLIC_DSA_WORKER_URL || 'http://localhost:5001'
+const DSA_WORKER   = process.env.NEXT_PUBLIC_WORKER_API_URL || 'http://localhost:5001'
 
 // cookie-based auth — no tokens needed
 const backendFetch = (path: string) =>
