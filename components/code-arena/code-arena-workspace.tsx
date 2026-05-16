@@ -136,7 +136,8 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         await fetch(`${FILE_SERVER}/heartbeat/${sessionId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tabHidden })
+          body: JSON.stringify({ tabHidden }),
+          keepalive: true
         });
       } catch (e) {
         // silently fail on heartbeat
@@ -215,14 +216,14 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   useEffect(() => {
     if (!problemDetails || sessionId) return // already have a session, skip
 
-    const stored = sessionStorage.getItem(`arena-session-${problemId}`)
+    const stored = localStorage.getItem(`arena-session-${problemId}`)
     if (!stored) return
 
     let parsed: { sessionId: string; previewUrl: string }
-    try { parsed = JSON.parse(stored) } catch { sessionStorage.removeItem(`arena-session-${problemId}`); return }
+    try { parsed = JSON.parse(stored) } catch { localStorage.removeItem(`arena-session-${problemId}`); return }
 
     const { sessionId: storedSid, previewUrl: storedUrl } = parsed
-    if (!storedSid || !storedUrl) { sessionStorage.removeItem(`arena-session-${problemId}`); return }
+    if (!storedSid || !storedUrl) { localStorage.removeItem(`arena-session-${problemId}`); return }
 
     // Verify the session is still alive on the server
     ;(async () => {
@@ -246,12 +247,12 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
           }
         } else {
           // 404 = session is gone (stopped or timed out between refresh)
-          sessionStorage.removeItem(`arena-session-${problemId}`)
+          localStorage.removeItem(`arena-session-${problemId}`)
           addLog(`$ 💡 Previous session has ended. Click "Prepare to Run" to start a new one.`)
         }
       } catch {
         // Dev server unreachable — clear storage, show idle
-        sessionStorage.removeItem(`arena-session-${problemId}`)
+        localStorage.removeItem(`arena-session-${problemId}`)
       }
     })()
   }, [problemDetails, problemId]) // Run once when problem loads
@@ -266,12 +267,13 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tabHidden }),
+          keepalive: true
         })
         if (res.status === 404) {
           const data = await res.json()
           addLog(`$ ⏹ ${data.message || 'Session was auto-stopped by the server.'}`)
           addLog(`$ 💡 Click "Prepare to Run" to start a new session.`)
-          sessionStorage.removeItem(`arena-session-${problemId}`)
+          localStorage.removeItem(`arena-session-${problemId}`)
           setSessionRemainingMs(null)
           setSessionStartedAt(null)
           setSessionState('idle')
@@ -471,7 +473,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       setSessionId(d.sessionId); setPreviewUrl(d.previewUrl)
       setSessionStartedAt(Date.now()); setSessionUptimeSecs(0); setSessionRemainingMs(null)
       // Persist session so a page refresh can reconnect instead of starting fresh
-      sessionStorage.setItem(`arena-session-${problemId}`, JSON.stringify({ sessionId: d.sessionId, previewUrl: d.previewUrl }))
+      localStorage.setItem(`arena-session-${problemId}`, JSON.stringify({ sessionId: d.sessionId, previewUrl: d.previewUrl }))
       addLog(`$ ✓ Workspace ready`)
       addLog(`$ Launching dev server...`)
 
@@ -491,7 +493,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       addLog(`$ ✓ Stopped.`)
     } catch (e: any) { addLog(`$ ✗ ${e.message}`) }
     finally {
-      sessionStorage.removeItem(`arena-session-${problemId}`)
+      localStorage.removeItem(`arena-session-${problemId}`)
       setSessionId(null); setPreviewUrl(null); setSessionState('idle');
       setSessionStartedAt(null); setSessionUptimeSecs(0); setSessionRemainingMs(null)
       setTestState('idle'); setTestResult(null);

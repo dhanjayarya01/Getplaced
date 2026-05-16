@@ -110,6 +110,7 @@ export default function ActiveDataPage() {
   const [cacheStats,    setCacheStats]    = useState<any>(null)
   const [cacheHealth,   setCacheHealth]   = useState<any>(null)
   const [bullmq,        setBullmq]        = useState<any>(null)
+  const [bullmqJobs,    setBullmqJobs]    = useState<any[]>([])
   const [loading,       setLoading]       = useState(true)
   const [killing,       setKilling]       = useState<Record<string, boolean>>({})
   const [lastRefresh,   setLastRefresh]   = useState<Date>(new Date())
@@ -147,6 +148,11 @@ export default function ActiveDataPage() {
       // BullMQ queue stats
       fetch(`${DSA_WORKER}/api/queue/stats`).then(r => r.ok ? r.json() : null).then(d => {
         if (d?.ok) setBullmq(d)
+      }).catch(() => {}),
+
+      // BullMQ queue jobs
+      fetch(`${DSA_WORKER}/api/queue/jobs`).then(r => r.ok ? r.json() : null).then(d => {
+        if (d?.ok) setBullmqJobs(d.jobs || [])
       }).catch(() => {}),
     ])
     setLastRefresh(new Date())
@@ -359,6 +365,48 @@ export default function ActiveDataPage() {
                 </div>
               ))}
             </div>
+
+            {/* JOBS LIST */}
+            {bullmqJobs.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Recent Jobs</h3>
+                <div className="rounded-xl border border-border bg-card/40 overflow-x-auto">
+                  <table className="w-full text-sm text-left whitespace-nowrap">
+                    <thead className="bg-secondary/40 text-xs uppercase text-muted-foreground border-b border-border">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Job ID</th>
+                        <th className="px-4 py-3 font-medium">Name</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium">Details</th>
+                        <th className="px-4 py-3 font-medium">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {bullmqJobs.map((job: any) => {
+                         const sColors: any = { active: 'text-blue-400 bg-blue-500/10', waiting: 'text-yellow-400 bg-yellow-500/10', delayed: 'text-orange-400 bg-orange-500/10', completed: 'text-emerald-400 bg-emerald-500/10', failed: 'text-red-400 bg-red-500/10' }
+                         return (
+                          <tr key={job.id} className="hover:bg-secondary/20">
+                            <td className="px-4 py-3 font-mono text-xs">{job.id}</td>
+                            <td className="px-4 py-3 font-medium">{job.name}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded text-[10px] font-medium uppercase ${sColors[job.state] || 'text-muted-foreground bg-secondary'}`}>
+                                {job.state}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground max-w-[200px] truncate" title={job.state === 'failed' ? job.failedReason : JSON.stringify(job.data)}>
+                              {job.state === 'failed' ? job.failedReason : (job.data?.problemId || JSON.stringify(job.data))}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {job.timestamp ? new Date(job.timestamp).toLocaleTimeString() : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-5 flex items-center gap-3">
