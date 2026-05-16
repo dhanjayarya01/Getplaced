@@ -121,9 +121,29 @@ export default function AdminUsersPage() {
   const pages = Math.ceil(total / limit)
   const visible = search
     ? users.filter(u =>
-        u.name?.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase()))
-    : users
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase())
+    ).slice(0, page * limit)
+    : users.slice(0, page * limit)
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && page < pages) {
+          setPage(prev => prev + 1)
+        }
+      },
+      { threshold: 0.1 }
+    )
+    
+    const bottomDiv = document.getElementById('infinite-scroll-trigger')
+    if (bottomDiv) observer.observe(bottomDiv)
+    
+    return () => {
+      if (bottomDiv) observer.unobserve(bottomDiv)
+    }
+  }, [page, pages])
 
   return (
     <div className="space-y-6">
@@ -163,7 +183,7 @@ export default function AdminUsersPage() {
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="Search name or email..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
         <select
@@ -196,7 +216,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
+              {loading && page === 1 ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     {Array.from({ length: 7 }).map((_, j) => (
@@ -310,36 +330,14 @@ export default function AdminUsersPage() {
               )}
             </tbody>
           </table>
+          {page < pages && (
+            <div id="infinite-scroll-trigger" className="h-10 w-full flex items-center justify-center text-muted-foreground text-sm py-4">
+              <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading more...
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Pagination */}
-      {pages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {pages} · {total.toLocaleString()} total users</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)} className="gap-1">
-              <ChevronLeft className="w-4 h-4" /> Prev
-            </Button>
-            {/* Page number pills */}
-            {Array.from({ length: Math.min(pages, 7) }, (_, i) => {
-              const pg = page <= 4 ? i + 1 : page + i - 3
-              if (pg < 1 || pg > pages) return null
-              return (
-                <Button key={pg} variant={pg === page ? 'default' : 'outline'} size="sm"
-                  className="w-8 h-8 p-0" onClick={() => setPage(pg)}>
-                  {pg}
-                </Button>
-              )
-            })}
-            <Button variant="outline" size="sm" disabled={page >= pages}
-              onClick={() => setPage(p => p + 1)} className="gap-1">
-              Next <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
       {/* Email Modal */}
       {emailModal.isOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">

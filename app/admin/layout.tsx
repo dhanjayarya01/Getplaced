@@ -56,11 +56,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ]
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       <Navbar />
-      <div className="pt-20 flex">
+      <div className="pt-16 flex h-[calc(100vh-4rem)]">
         {/* Sidebar */}
-        <aside className="w-64 border-r border-border min-h-[calc(100vh-5rem)] bg-card/50 sticky top-20">
+        <aside className="w-64 shrink-0 border-r border-border h-full bg-card/50 overflow-y-auto no-scrollbar">
           <div className="p-4">
             <h2 className="text-lg font-semibold mb-4 px-3">Admin Panel</h2>
             <nav className="space-y-1">
@@ -89,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 overflow-y-auto no-scrollbar p-8">
           {children}
         </main>
       </div>
