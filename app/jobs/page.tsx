@@ -5,6 +5,7 @@ import { Navbar } from "@/components/navbar"
 import { JobList } from "@/components/getplaced/job-list"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Briefcase, Search, Filter, X } from "lucide-react"
+import { ResumeModal } from "@/components/resume/resume-modal"
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 const apiFetch = (path: string, opts?: RequestInit) =>
@@ -129,6 +130,10 @@ export default function JobsPage() {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Discover the latest roles at top tech companies, scraped in real-time.
             </p>
+          </div>
+          {/* Resume Button - Bottom Right Corner */}
+          <div className="absolute bottom-4 right-4 sm:right-6 lg:right-8 z-10">
+            <ResumeModal />
           </div>
         </section>
       </div>

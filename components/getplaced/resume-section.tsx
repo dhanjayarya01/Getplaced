@@ -1,10 +1,30 @@
-"use client"
-
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FileText, Upload, Sparkles, Check, AlertCircle } from "lucide-react"
+import { FileText, Upload, Sparkles, Check, AlertCircle, Loader2 } from "lucide-react"
 import { ResumeModal } from "@/components/resume/resume-modal"
+import { apiService } from "@/lib/api"
 
 export function ResumeSection() {
+  const [resumeData, setResumeData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchResume = async () => {
+    try {
+      const response = await apiService.resume.get()
+      if (response.success && response.data) {
+        setResumeData(response.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch resume:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchResume()
+  }, [])
+
   return (
     <div className="space-y-6 sticky top-24">
       {/* Resume Builder Card */}
@@ -20,7 +40,10 @@ export function ResumeSection() {
         </div>
 
         <div className="space-y-3">
-          <Button className="w-full bg-primary text-primary-foreground">
+          <Button 
+            className="w-full bg-primary/50 text-primary-foreground opacity-70 cursor-not-allowed hover:bg-primary/50" 
+            title="Coming Soon"
+          >
             <Sparkles className="w-4 h-4 mr-2" />
             Generate with AI
           </Button>
@@ -37,40 +60,54 @@ export function ResumeSection() {
       <div className="bg-card rounded-xl border border-border p-6">
         <h3 className="font-semibold mb-4">Resume Analysis</h3>
 
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm">ATS Score</span>
-              <span className="text-sm font-medium text-primary">78%</span>
-            </div>
-            <div className="h-2 bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full" style={{ width: "78%" }} />
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-6 text-muted-foreground">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+            <span>Analyzing...</span>
           </div>
+        ) : resumeData?.parsedData ? (
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm">Experience</span>
+                <span className="text-sm font-medium text-primary">{resumeData.parsedData.totalExperienceYears || 0} years</span>
+              </div>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full" style={{ width: "100%" }} />
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Check className="w-4 h-4 text-green-500" />
-              <span>Clear contact information</span>
+            <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
+              {resumeData.parsedData.strengthAreas?.slice(0, 3).map((strength: string, i: number) => (
+                <div key={`s-${i}`} className="flex items-start gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                  <span className="line-clamp-2">{strength}</span>
+                </div>
+              ))}
+              {resumeData.parsedData.potentialGaps?.slice(0, 2).map((gap: string, i: number) => (
+                <div key={`g-${i}`} className="flex items-start gap-2 text-sm">
+                  <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <span className="line-clamp-2">{gap}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Check className="w-4 h-4 text-green-500" />
-              <span>Proper section headings</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <AlertCircle className="w-4 h-4 text-yellow-500" />
-              <span>Add more quantifiable achievements</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <AlertCircle className="w-4 h-4 text-yellow-500" />
-              <span>Include relevant keywords</span>
-            </div>
+            
+            <ResumeModal>
+              <Button variant="outline" size="sm" className="w-full mt-4 bg-transparent">
+                View Full Analysis
+              </Button>
+            </ResumeModal>
           </div>
-        </div>
-
-        <Button variant="outline" size="sm" className="w-full mt-4 bg-transparent">
-          View Full Analysis
-        </Button>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-sm text-muted-foreground mb-4">No resume uploaded yet</p>
+            <ResumeModal>
+              <Button variant="outline" size="sm" className="w-full bg-transparent">
+                Upload Resume to Analyze
+              </Button>
+            </ResumeModal>
+          </div>
+        )}
       </div>
 
       {/* Quick Stats */}
