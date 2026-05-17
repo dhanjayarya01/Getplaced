@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Users, Search, Shield, UserX, RefreshCw, ChevronLeft, ChevronRight, Crown, User, Trophy, Star, Mail, Calendar } from "lucide-react"
+import { Users, Search, Shield, UserX, RefreshCw, ChevronLeft, ChevronRight, Crown, User, Trophy, Star, Mail, Calendar, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
@@ -33,6 +33,10 @@ export default function AdminUsersPage() {
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [queueStatus, setQueueStatus] = useState<{ wait: number, active: number, completed: number, failed: number } | null>(null)
+
+  const [notificationModal, setNotificationModal] = useState({ isOpen: false, targetUserId: null as string | null, targetName: '', isSending: false, sendStatus: 'idle' })
+  const [notificationTitle, setNotificationTitle] = useState('')
+  const [notificationMessage, setNotificationMessage] = useState('')
 
   const limit = 20
 
@@ -99,6 +103,38 @@ export default function AdminUsersPage() {
     }
   }
 
+  const sendNotification = async () => {
+    if (!notificationTitle || !notificationMessage) return alert('Title and Message are required')
+    setNotificationModal(prev => ({ ...prev, isSending: true }))
+    try {
+      const res = await adminFetch(`/api/admin/users/notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds: notificationModal.targetUserId ? [notificationModal.targetUserId] : [],
+          sendToAll: !notificationModal.targetUserId,
+          title: notificationTitle,
+          message: notificationMessage
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setNotificationModal(prev => ({ ...prev, isSending: false, sendStatus: 'sent' }))
+        setTimeout(() => {
+          setNotificationTitle('')
+          setNotificationMessage('')
+          setNotificationModal({ isOpen: false, targetUserId: null, targetName: '', isSending: false, sendStatus: 'idle' })
+        }, 1000)
+      } else {
+        console.error(data.message)
+        setNotificationModal(prev => ({ ...prev, isSending: false }))
+      }
+    } catch (e: any) {
+      console.error(e.message)
+      setNotificationModal(prev => ({ ...prev, isSending: false }))
+    }
+  }
+
   // Poll queue status every 2s
   useEffect(() => {
     const fetchStatus = async () => {
@@ -159,6 +195,9 @@ export default function AdminUsersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="default" size="sm" onClick={() => setNotificationModal({ isOpen: true, targetUserId: null, targetName: 'All Users', isSending: false })} className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600">
+            <Bell className="w-4 h-4" /> Notify All
+          </Button>
           <Button variant="default" size="sm" onClick={() => setEmailModal({ isOpen: true, targetUserId: null, targetName: 'All Users', isSending: false })} className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600">
             <Mail className="w-4 h-4" /> Email All Users
           </Button>
@@ -312,6 +351,11 @@ export default function AdminUsersPage() {
                           </Button>
                         )}
                         <Button size="sm" variant="outline"
+                          className="h-7 text-xs gap-1 border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
+                          onClick={() => setNotificationModal({ isOpen: true, targetUserId: u._id, targetName: u.name || u.email, isSending: false })}>
+                          <Bell className="w-3 h-3" /> Notify
+                        </Button>
+                        <Button size="sm" variant="outline"
                           className="h-7 text-xs gap-1 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                           onClick={() => setEmailModal({ isOpen: true, targetUserId: u._id, targetName: u.name || u.email, isSending: false })}>
                           <Mail className="w-3 h-3" /> Email
@@ -400,6 +444,60 @@ export default function AdminUsersPage() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Modal */}
+      {notificationModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border shadow-lg rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Bell className="w-5 h-5 text-primary" />
+                Push Notification to {notificationModal.targetName}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {notificationModal.targetUserId ? 'This will send an instant on-site notification to this user.' : 'Warning: This will send an instant on-site notification to ALL active users.'}
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block text-muted-foreground">Title</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+                  placeholder="e.g., System Update"
+                  value={notificationTitle}
+                  onChange={e => setNotificationTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block text-muted-foreground">Message</label>
+                <textarea
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background h-24 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow resize-none"
+                  placeholder="Hello there..."
+                  value={notificationMessage}
+                  onChange={e => setNotificationMessage(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-border bg-muted/20 flex flex-col items-end gap-2">
+              <div className="flex gap-3 w-full justify-end">
+                <Button variant="outline" onClick={() => setNotificationModal({ isOpen: false, targetUserId: null, targetName: '', isSending: false, sendStatus: 'idle' })}>
+                  Close
+                </Button>
+                <Button onClick={sendNotification} disabled={notificationModal.isSending || notificationModal.sendStatus === 'sent' || !notificationTitle || !notificationMessage} className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-0 transition-all">
+                  {notificationModal.isSending ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin" /> Sending...</>
+                  ) : notificationModal.sendStatus === 'sent' ? (
+                    <><Shield className="w-4 h-4" /> Sent!</>
+                  ) : (
+                    <><Bell className="w-4 h-4" /> Send Notification</>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
