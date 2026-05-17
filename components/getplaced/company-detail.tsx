@@ -111,98 +111,94 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
       </Link>
 
       {/* Company Header */}
-      <div className="bg-card rounded-xl border border-border p-8 mb-8 shadow-sm">
-        <div className="flex flex-col md:flex-row items-start gap-6">
-          {company.logo ? (
-            <img src={company.logo} alt={company.name} className="w-24 h-24 rounded-xl object-contain bg-white border border-border p-1" />
-          ) : (
-            <div className="w-24 h-24 rounded-xl bg-secondary flex items-center justify-center text-4xl font-bold">
-              {company.name?.charAt(0)}
-            </div>
-          )}
-          <div className="flex-1 w-full">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{company.name}</h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                   {company.headquarters && (
-                     <span className="flex items-center gap-1">
-                       <MapPin className="w-4 h-4" />
-                       {company.headquarters}
-                     </span>
-                   )}
-                  {company.locations?.[0] && (
-                    <span className="flex items-center gap-1">
-                      <Globe className="w-4 h-4" />
-                      {company.locations.join(", ")}
-                    </span>
-                  )}
-                  {company.employeeCount && (
-                    <span className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      {company.employeeCount} Employees
-                    </span>
-                  )}
-                   {company.founded && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-4 h-4" />
-                      Est. {company.founded}
-                    </span>
-                  )}
-                  {company.website && (
-                    <a href={company.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
-                      <Globe className="w-4 h-4" />
-                      Website
-                    </a>
-                  )}
-                </div>
+      <div className="bg-card rounded-2xl border border-border overflow-hidden mb-8 shadow-sm">
+        {/* Gradient banner */}
+        <div className="h-24 bg-gradient-to-r from-primary/20 via-blue-500/10 to-purple-500/10 relative">
+          <div className="absolute inset-0 bg-grid-pattern opacity-[0.03]" />
+        </div>
+        <div className="px-8 pb-8 -mt-10">
+          <div className="flex flex-col md:flex-row items-start gap-6">
+            {/* Logo */}
+            {company.logo ? (
+              <div className="w-20 h-20 rounded-2xl bg-white border-4 border-card shadow-xl flex items-center justify-center overflow-hidden">
+                <img src={company.logo} alt={company.name} className="w-14 h-14 object-contain" />
               </div>
-              <div className="flex flex-col items-end gap-2">
-                 {company.isHiring && (
-                     <Badge variant="default" className="bg-green-500 hover:bg-green-600">Hiring Now</Badge>
-                 )}
+            ) : (
+              <div className={`w-20 h-20 rounded-2xl border-4 border-card shadow-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white text-3xl font-bold`}>
+                {company.name?.charAt(0)}
               </div>
-            </div>
+            )}
 
-            <p className="mt-4 text-muted-foreground leading-relaxed">{company.description}</p>
-
-            <div className="flex flex-wrap gap-6 mt-6 pt-6 border-t border-border">
-              {company.averagePackage && (
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                      <DollarSign className="w-5 h-5 text-primary" />
+            <div className="flex-1 w-full pt-2">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-3xl font-bold">{company.name}</h1>
+                    {company.isHiring && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-bold rounded-full">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                        Hiring Now
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Salary Package</p>
-                    <p className="font-semibold text-foreground">{formatPackage(company.averagePackage)}</p>
+                  <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                    {company.headquarters && (
+                      <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{company.headquarters}</span>
+                    )}
+                    {company.locations?.[0] && (
+                      <span className="flex items-center gap-1"><Globe className="w-4 h-4" />{company.locations.join(", ")}</span>
+                    )}
+                    {company.employeeCount && (
+                      <span className="flex items-center gap-1"><Users className="w-4 h-4" />{company.employeeCount} Employees</span>
+                    )}
+                    {company.founded && (
+                      <span className="flex items-center gap-1"><Building2 className="w-4 h-4" />Est. {company.founded}</span>
+                    )}
+                    {company.website && (
+                      <a href={company.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
+                        <Globe className="w-4 h-4" />Website
+                      </a>
+                    )}
                   </div>
                 </div>
+              </div>
+
+              {company.description && (
+                <p className="mt-4 text-muted-foreground leading-relaxed text-sm">{company.description}</p>
               )}
-               <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                      <Briefcase className="w-5 h-5 text-primary" />
+
+              <div className="flex flex-wrap gap-4 mt-5 pt-5 border-t border-border">
+                {company.averagePackage && (
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg"><DollarSign className="w-4 h-4 text-primary" /></div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Salary</p>
+                      <p className="font-semibold text-sm">{formatPackage(company.averagePackage)}</p>
+                    </div>
                   </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg"><Briefcase className="w-4 h-4 text-primary" /></div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Experience</p>
-                     <p className="font-semibold text-foreground">
-                        {company.hiringFreshers ? "Freshers Allowed" : "Experienced Only"}
-                         {company.experienceRequired && (company.experienceRequired.min > 0 || company.experienceRequired.max > 0) && (
-                             ` (${company.experienceRequired.min}-${company.experienceRequired.max} Years)`
-                         )}
-                     </p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Experience</p>
+                    <p className="font-semibold text-sm">
+                      {company.hiringFreshers ? "Freshers Welcome" : "Experienced"}
+                      {company.experienceRequired && (company.experienceRequired.min > 0 || company.experienceRequired.max > 0) && (
+                        ` (${company.experienceRequired.min}–${company.experienceRequired.max} yrs)`
+                      )}
+                    </p>
                   </div>
                 </div>
-                 {company.workModes && company.workModes.length > 0 && (
-                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                      <Laptop className="w-5 h-5 text-primary" />
+                {company.workModes && company.workModes.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg"><Laptop className="w-4 h-4 text-primary" /></div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Work Mode</p>
+                      <p className="font-semibold text-sm">{company.workModes.join(", ")}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Work Mode</p>
-                    <p className="font-semibold text-foreground">{company.workModes.join(", ")}</p>
-                  </div>
-                </div>
-                 )}
+                )}
+              </div>
             </div>
           </div>
         </div>

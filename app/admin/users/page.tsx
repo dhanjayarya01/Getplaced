@@ -182,7 +182,7 @@ export default function AdminUsersPage() {
   }, [page, pages])
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-[calc(100vh-5rem)] space-y-0">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -215,7 +215,7 @@ export default function AdminUsersPage() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap shrink-0 pb-1">
         <div className="relative flex-1 min-w-48 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -239,12 +239,12 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border overflow-hidden">
+      {/* Scrollable Table */}
+      <div className="flex-1 overflow-y-auto rounded-xl border border-border min-h-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/40 border-b border-border">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-muted/80 backdrop-blur border-b border-border">
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">User</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Role</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
