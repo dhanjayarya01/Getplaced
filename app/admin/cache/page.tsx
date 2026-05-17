@@ -26,6 +26,7 @@ const TYPE_COLORS: Record<string, string> = {
 export default function CachePage() {
   const [health, setHealth]     = useState<any>(null)
   const [stats,  setStats]      = useState<any>(null)
+  const [queues, setQueues]     = useState<any[]>(null)
   const [keys,   setKeys]       = useState<any[]>([])
   const [total,  setTotal]      = useState(0)
   const [page,   setPage]       = useState(1)
@@ -45,6 +46,7 @@ export default function CachePage() {
     await Promise.allSettled([
       fetch(`${BACKEND}/api/cache/health`).then(r => r.ok ? r.json() : null).then(d => d?.success && setHealth(d.data)),
       api('/api/cache/stats').then(r => r.ok ? r.json() : null).then(d => d?.success && setStats(d.data)),
+      api('/api/cache/queues').then(r => r.ok ? r.json() : null).then(d => d?.success && setQueues(d.data)),
       api(`/api/cache/keys?pattern=${encodeURIComponent(pattern)}&page=${page}&limit=${limit}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d?.success) { setKeys(d.data.keys); setTotal(d.data.pagination.total) } }),
@@ -169,6 +171,59 @@ export default function CachePage() {
           </div>
         )}
       </div>
+
+      {/* Message Queues */}
+      {queues && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-2">
+            <Database className="w-5 h-5 text-purple-400" /> Platform Message Queues
+          </h2>
+          <div className="grid lg:grid-cols-3 gap-4">
+            {queues.map((q: any) => (
+              <div key={q.name} className="rounded-xl border border-border bg-card/40 overflow-hidden flex flex-col">
+                <div className="bg-muted/30 px-4 py-3 border-b border-border flex justify-between items-center">
+                  <div className="font-semibold text-sm capitalize">{q.name.replace('-', ' ')}</div>
+                  <div className="text-xs text-muted-foreground">{q.jobs.length} recent</div>
+                </div>
+                <div className="p-4 flex-1">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {[
+                      { l: 'Active', v: q.counts.active, c: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                      { l: 'Waiting', v: q.counts.wait, c: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' },
+                      { l: 'Delayed', v: q.counts.delayed, c: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
+                      { l: 'Failed', v: q.counts.failed, c: 'text-red-400 bg-red-500/10 border-red-500/20' },
+                    ].map(({ l, v, c }) => (
+                      <div key={l} className={`flex justify-between px-2 py-1.5 rounded text-xs border ${c}`}>
+                        <span>{l}</span>
+                        <span className="font-bold">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {q.jobs.length > 0 ? (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {q.jobs.map((j: any) => {
+                         const sColors: any = { active: 'text-blue-400 border-blue-500/20 bg-blue-500/5', waiting: 'text-yellow-400 border-yellow-500/20 bg-yellow-500/5', delayed: 'text-orange-400 border-orange-500/20 bg-orange-500/5', completed: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5', failed: 'text-red-400 border-red-500/20 bg-red-500/5' }
+                         return (
+                          <div key={j.id} className="text-[10px] rounded border border-border bg-background p-2 flex flex-col gap-1">
+                            <div className="flex justify-between items-center">
+                              <span className="font-mono text-muted-foreground">#{j.id}</span>
+                              <span className={`px-1.5 py-0.5 rounded border uppercase font-medium ${sColors[j.state] || 'text-muted-foreground bg-secondary'}`}>{j.state}</span>
+                            </div>
+                            <div className="truncate font-medium text-foreground">{j.name}</div>
+                            {j.state === 'failed' && <div className="text-red-400 truncate mt-0.5" title={j.failedReason}>{j.failedReason}</div>}
+                          </div>
+                         )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground text-center py-4">No recent jobs</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Key browser */}
       <div className="space-y-3">
