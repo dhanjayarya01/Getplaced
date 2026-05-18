@@ -16,7 +16,7 @@ interface DSAAiTutorProps {
 }
 
 export function DSAAiTutor({ problem, code, language, onClose, onCodeChange }: DSAAiTutorProps) {
-  const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute } = useVapi()
+  const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute, hasSpoken } = useVapi()
   const [isStarting, setIsStarting] = useState(false)
   const [voiceLanguage, setVoiceLanguage] = useState<'English' | 'Hindi'>('English')
   const [isMinimized, setIsMinimized] = useState(false)
@@ -523,6 +523,14 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
           <div className="flex items-center gap-2 font-semibold">
             <Bot className="w-5 h-5 text-primary" />
             AI Tutor
+            {isCallActive && (
+              <div className="flex items-center gap-1.5 ml-2">
+                <div className={`w-2 h-2 rounded-full ${!hasSpoken ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                  {!hasSpoken ? "Preparing..." : "Active"}
+                </span>
+              </div>
+            )}
           </div>
           <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 text-xs rounded-md font-medium">
             {language.toUpperCase()}
@@ -602,6 +610,18 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
             {/* Conversation View */}
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
+                {isCallActive && !hasSpoken && transcript.length === 0 && (
+                  <div className="text-xs mb-1 flex items-center gap-2 text-muted-foreground bg-muted/50 p-2 rounded">
+                    <span className="font-medium">AI: </span>
+                    <div className="flex gap-1">
+                      <span className="w-1 h-1 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                      <span className="w-1 h-1 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                      <span className="w-1 h-1 bg-primary/50 rounded-full animate-bounce"></span>
+                    </div>
+                    <span>Connecting and preparing for you...</span>
+                  </div>
+                )}
+                
                 {transcript.length === 0 ? (
                   <div className="text-center text-muted-foreground text-sm py-8">
                     Voice conversation will appear here...

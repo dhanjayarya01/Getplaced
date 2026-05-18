@@ -10,6 +10,7 @@ interface VapiContextType {
   startCall: (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => any, additionalFunctions?: any[]) => Promise<void>
   endCall: () => Promise<void>
   toggleMute: () => void
+  hasSpoken: boolean
 }
 
 const VapiContext = createContext<VapiContextType | null>(null)
@@ -18,9 +19,11 @@ export function VapiProvider({ children }: { children: ReactNode }) {
   const [isCallActive, setIsCallActive] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [transcript, setTranscript] = useState<{ role: string; content: string }[]>([])
+  const [hasSpoken, setHasSpoken] = useState(false)
 
   const startCall = useCallback(async (systemPrompt: string, voiceId?: string, language?: string, onFunctionCall?: (name: string, args: any) => any, additionalFunctions?: any[]) => {
     try {
+      setHasSpoken(false)
       await vapiService.startCall(systemPrompt, voiceId, language, async (message: any) => {
         // Log all messages for debugging
         // console.log('📥 VAPI Provider received:', message)
@@ -33,6 +36,14 @@ export function VapiProvider({ children }: { children: ReactNode }) {
               content: message.transcript
             }
           ])
+          if (message.role === 'assistant') {
+            setHasSpoken(true)
+          }
+        }
+        
+        // Mark as spoken as soon as model starts generating or assistant speaks
+        if (message.type === 'model-output' || message.type === 'speech-update' || message.type === 'voice-input') {
+          setHasSpoken(true)
         }
         
         // Handle VAPI tool-calls (function calling)
@@ -95,6 +106,7 @@ export function VapiProvider({ children }: { children: ReactNode }) {
         startCall,
         endCall,
         toggleMute,
+        hasSpoken,
       }}
     >
       {children}

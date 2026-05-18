@@ -119,7 +119,13 @@ export default function AdminMockInterviewsPage() {
               ) : (
                 interviews.map((interview: any) => (
                   <tr key={interview._id} className="border-b hover:bg-secondary/50">
-                    <td className="p-4 text-2xl">{interview.icon}</td>
+                    <td className="p-4 text-2xl">
+                      {interview.image ? (
+                        <img src={interview.image} alt={interview.title} className="w-8 h-8 object-contain rounded-md" />
+                      ) : (
+                        interview.icon
+                      )}
+                    </td>
                     <td className="p-4">
                       <div className="font-medium">{interview.title}</div>
                       <div className="text-sm text-muted-foreground line-clamp-1">

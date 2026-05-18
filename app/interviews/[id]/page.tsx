@@ -76,7 +76,13 @@ export default function InterviewDetailPage() {
         {/* Header */}
         <div className="bg-card rounded-xl border p-8 mb-6">
           <div className="flex items-start gap-6">
-            <div className="text-6xl">{interview.icon}</div>
+            <div className="text-6xl h-16 w-16 flex items-center justify-center shrink-0">
+              {interview.image ? (
+                <img src={interview.image} alt={interview.title} className="w-16 h-16 object-contain rounded-xl" />
+              ) : (
+                interview.icon
+              )}
+            </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold capitalize mb-2">
                 {interview.title.replace(/-/g, " ")}

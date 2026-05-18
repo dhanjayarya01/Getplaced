@@ -16,8 +16,13 @@ interface CodingInterviewLayoutProps {
 
 export function CodingInterviewLayout({ session, interview, systemPrompt }: CodingInterviewLayoutProps) {
   const router = useRouter()
-  const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute } = useVapi()
+  const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute, hasSpoken } = useVapi()
   const [isAvatarHidden, setIsAvatarHidden] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [transcript])
   
   // Workspace State
   const [problem, setProblem] = useState<any>(null)
@@ -570,7 +575,9 @@ Be friendly, encouraging, and time-aware. Let's begin!`
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold">AI Interviewer</h3>
-                <p className="text-xs text-muted-foreground">{isCallActive ? "Monitoring..." : "Paused"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {!isCallActive ? "Paused" : !hasSpoken ? "Preparing..." : "Monitoring..."}
+                </p>
               </div>
               {/* Visual indicator when reading code? */}
             </div>
@@ -584,7 +591,21 @@ Be friendly, encouraging, and time-aware. Let's begin!`
                   <span className="text-muted-foreground line-clamp-1">{item.content}</span>
                 </div>
               ))}
-              {transcript.length === 0 && (
+              
+              {isCallActive && !hasSpoken && transcript.length === 0 && (
+                <div className="text-xs mb-1 flex items-center gap-2 text-muted-foreground">
+                  <span className="font-medium">AI: </span>
+                  <div className="flex gap-1">
+                    <span className="w-1 h-1 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1 h-1 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1 h-1 bg-primary/50 rounded-full animate-bounce"></span>
+                  </div>
+                  <span>Connecting...</span>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+              {!isCallActive && transcript.length === 0 && (
                 <p className="text-xs text-muted-foreground">No conversation yet...</p>
               )}
             </div>

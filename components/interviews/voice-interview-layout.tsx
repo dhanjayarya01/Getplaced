@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Mic, MicOff, PhoneOff } from "lucide-react"
@@ -15,7 +15,12 @@ interface VoiceInterviewLayoutProps {
 
 export function VoiceInterviewLayout({ session, interview, systemPrompt }: VoiceInterviewLayoutProps) {
   const router = useRouter()
-  const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute } = useVapi()
+  const { isCallActive, isMuted, transcript, startCall, endCall, toggleMute, hasSpoken } = useVapi()
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [transcript])
 
   useEffect(() => {
     // Use the backend-generated system prompt if available
@@ -144,7 +149,22 @@ Be ${stage?.strictness >= 7 ? "strict" : "supportive"}.`
               </div>
             </div>
           ))}
-          {transcript.length === 0 && (
+          {isCallActive && !hasSpoken && transcript.length === 0 && (
+            <div className="flex justify-start">
+              <div className="inline-block bg-primary/10 text-foreground rounded-lg p-3 max-w-[85%]">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce"></span>
+                  </div>
+                  Tanya is reading your profile and preparing...
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+          {!isCallActive && transcript.length === 0 && (
             <div className="text-center text-muted-foreground text-sm py-8">
               <p>Waiting for conversation to start...</p>
               <p className="text-xs mt-2">Tanya will greet you shortly</p>
@@ -188,7 +208,7 @@ Be ${stage?.strictness >= 7 ? "strict" : "supportive"}.`
           <h2 className="text-2xl font-bold">Tanya</h2>
           <p className="text-muted-foreground">AI Interviewer</p>
           <div className="mt-4 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
-            {isCallActive ? "Listening..." : "Waiting..."}
+            {!isCallActive ? "Waiting..." : !hasSpoken ? "Connecting..." : "Listening..."}
           </div>
         </div>
 

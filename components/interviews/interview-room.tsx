@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Mic,
@@ -108,6 +108,12 @@ export function InterviewRoom({ interviewType }: InterviewRoomProps) {
   const [terminalInput, setTerminalInput] = useState("")
   const [showParticipants, setShowParticipants] = useState(false)
   const [activeOutputTab, setActiveOutputTab] = useState<"output" | "browser" | "console">("output")
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, isAISpeaking])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -583,6 +589,7 @@ export function InterviewRoom({ interviewType }: InterviewRoomProps) {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           <div className="p-3 border-t border-border">

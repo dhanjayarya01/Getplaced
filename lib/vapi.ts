@@ -103,6 +103,9 @@ class VapiService {
                 // Give AI time to think before responding
                 responseDelaySeconds: 0.4,
 
+                // Make the assistant speak first based on the system prompt
+                firstMessageMode: 'assistant-speaks-first-with-model-generated-message',
+
                 // Graceful disconnection message
                 endCallMessage: 'Interview session ended. Thank you!',
 
@@ -113,7 +116,7 @@ class VapiService {
             } as any)
 
             this.isCallActive = true
-
+            
             // Listen to ALL messages with debugging
             this.vapi.on('message', (message: any) => {
                 // Log only non-transcript messages to avoid clutter, or log everything if needed

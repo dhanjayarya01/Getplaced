@@ -17,6 +17,7 @@ interface Stage {
 interface InterviewFormData {
   title: string
   icon: string
+  image?: string
   description: string
   codingType: boolean
   duration: number
@@ -37,6 +38,7 @@ export function InterviewFormModal({ open, onClose, interview, onSave }: Intervi
   const [formData, setFormData] = useState<InterviewFormData>({
     title: interview?.title || "",
     icon: interview?.icon || "🎤",
+    image: interview?.image || "",
     description: interview?.description || "",
     codingType: interview?.codingType || false,
     duration: interview?.duration || 60,
@@ -57,6 +59,36 @@ export function InterviewFormModal({ open, onClose, interview, onSave }: Intervi
   const [topicInput, setTopicInput] = useState("")
   const [tagInput, setTagInput] = useState("")
   const [companyInput, setCompanyInput] = useState("")
+  const [useImage, setUseImage] = useState(!!interview?.image)
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  const PREDEFINED_EMOJIS = [
+    '🎤', '💻', '🧠', '⚙️', '📊', '📈', '🗣️', '🤝', 
+    '🚀', '🎯', '🧩', '⚡', '💡', '🔥', '🛡️', '📱', 
+    '🌐', '🛠️', '📝', '👔'
+  ]
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      setUploadingImage(true)
+      const uploadData = new FormData()
+      uploadData.append('image', file)
+      
+      const { apiService } = await import('@/lib/api')
+      const response = await apiService.admin.mockInterviews.uploadImage(uploadData)
+      
+      if (response.success) {
+        setFormData(prev => ({ ...prev, image: response.imageUrl, icon: "" }))
+      }
+    } catch (error) {
+      console.error("Failed to upload image:", error)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   const handleAddStage = () => {
     const newStage: Stage = {
@@ -134,15 +166,67 @@ export function InterviewFormModal({ open, onClose, interview, onSave }: Intervi
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Icon (emoji)</label>
-              <input
-                type="text"
-                value={formData.icon}
-                onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg"
-                placeholder="💻"
-                required
-              />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium">Visual Identity</label>
+                <div className="flex items-center gap-2 text-xs">
+                  <button 
+                    type="button" 
+                    onClick={() => setUseImage(false)}
+                    className={!useImage ? "text-primary font-bold" : "text-muted-foreground"}
+                  >
+                    Icon
+                  </button>
+                  <span>|</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setUseImage(true)}
+                    className={useImage ? "text-primary font-bold" : "text-muted-foreground"}
+                  >
+                    Image
+                  </button>
+                </div>
+              </div>
+
+              {!useImage ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="text-3xl p-3 border rounded-lg bg-secondary/10 flex items-center justify-center min-w-[60px] min-h-[60px]">
+                      {formData.icon}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Select an icon from below</p>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 bg-secondary/10 p-3 rounded-lg">
+                    {PREDEFINED_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, icon: emoji, image: "" })}
+                        className={`text-2xl p-2 rounded hover:bg-secondary transition-colors flex items-center justify-center ${
+                          formData.icon === emoji ? 'bg-primary/20 ring-1 ring-primary' : ''
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    disabled={uploadingImage}
+                  />
+                  {uploadingImage && <span className="text-xs text-blue-500">Uploading...</span>}
+                  {formData.image && (
+                    <div className="mt-2 p-2 border rounded bg-secondary/20 inline-block w-16 h-16">
+                      <img src={formData.image} alt="preview" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

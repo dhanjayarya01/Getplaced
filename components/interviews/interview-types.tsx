@@ -44,7 +44,13 @@ export function InterviewTypes() {
             href={`/interviews/${interview._id}`}
             className="bg-card rounded-xl border border-border p-6 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/5 cursor-pointer group"
           >
-            <div className="text-4xl mb-4">{interview.icon}</div>
+            <div className="text-4xl mb-4 h-10 w-10 flex items-center justify-center">
+              {interview.image ? (
+                <img src={interview.image} alt={interview.title} className="w-10 h-10 object-contain rounded-md" />
+              ) : (
+                interview.icon
+              )}
+            </div>
             <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors capitalize">
               {interview.title.replace(/-/g, ' ')}
             </h3>

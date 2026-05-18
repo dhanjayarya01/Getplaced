@@ -565,6 +565,19 @@ class ApiService {
                     throw this._handleError(error)
                 }
             },
+
+            uploadImage: async (formData: FormData) => {
+                try {
+                    const response = await apiClient.post('/api/admin/mock-interviews/upload-image', formData, {
+                        headers: {
+                            'Content-Type': 'multipart/form-data',
+                        },
+                    })
+                    return response.data
+                } catch (error) {
+                    throw this._handleError(error)
+                }
+            },
         },
     }
 
