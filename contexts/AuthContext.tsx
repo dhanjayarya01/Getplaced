@@ -53,16 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showSignInModal, setShowSignInModal] = useState(false)
   const pathname = usePathname()
 
-  // Check authentication status on mount - but only for protected routes
+  // Check authentication status on mount globally
   useEffect(() => {
-    if (isPublicRoute(pathname)) {
-      // Skip auth check for public routes
-      setLoading(false)
-      return
-    }
-    
     checkAuthStatus()
-  }, [pathname])
+  }, [])
 
   const checkAuthStatus = async () => {
     try {

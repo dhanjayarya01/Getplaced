@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface ProtectedRouteProps {
@@ -9,13 +10,22 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, loading, setShowSignInModal } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       setShowSignInModal(true)
+      router.push('/')
     }
-  }, [isAuthenticated, loading, setShowSignInModal])
+  }, [isAuthenticated, loading, setShowSignInModal, router])
 
-  // Show content regardless - modal will appear if not authenticated
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
+
   return <>{children}</>
 }
