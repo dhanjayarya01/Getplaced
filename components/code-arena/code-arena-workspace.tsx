@@ -75,6 +75,27 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
   const [previewPath, setPreviewPath] = useState('/')
   const [terminalInput, setTerminalInput] = useState('')
 
+  // Custom Prompt State
+  const [promptState, setPromptState] = useState<{
+    isOpen: boolean;
+    title: string;
+    value: string;
+    onSubmit: (val: string) => void;
+    onCancel: () => void;
+  }>({ isOpen: false, title: '', value: '', onSubmit: () => {}, onCancel: () => {} })
+
+  const requestPrompt = (title: string): Promise<string | null> => {
+    return new Promise(resolve => {
+      setPromptState({
+        isOpen: true,
+        title,
+        value: '',
+        onSubmit: (val) => { setPromptState(p => ({ ...p, isOpen: false })); resolve(val) },
+        onCancel: () => { setPromptState(p => ({ ...p, isOpen: false })); resolve(null) }
+      })
+    })
+  }
+
   // Parse Test Logs
   const parsedTests = useMemo(() => {
     if (!testResult?.logs) return [];
@@ -599,7 +620,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         addLog("$ ✗ Please 'Prepare to Run' before creating files.")
         return
       }
-      const name = prompt(`Enter new ${isFolder ? 'folder' : 'file'} name:`)
+      const name = await requestPrompt(`Enter new ${isFolder ? 'folder' : 'file'} name:`)
       if (!name) return
       
       const dirPath = isFile ? node.path.split('/').slice(0, -1).join('/') : node.path
@@ -817,7 +838,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                       <IconBtn
                         title="New File at root"
                         onClick={async (e) => {
-                          const name = prompt('Enter new file name:')
+                          const name = await requestPrompt('Enter new file name:')
                           if (!name) return
                           try {
                             const r = await fetch(`${FILE_SERVER}/workspace/create`, {
@@ -833,7 +854,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                       <IconBtn
                         title="New Folder at root"
                         onClick={async (e) => {
-                          const name = prompt('Enter new folder name:')
+                          const name = await requestPrompt('Enter new folder name:')
                           if (!name) return
                           try {
                             const r = await fetch(`${FILE_SERVER}/workspace/create`, {
@@ -1210,6 +1231,31 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
                   )}
                 </Button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM PROMPT MODAL */}
+      {promptState.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-lg shadow-xl w-[320px] p-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-sm font-semibold mb-3">{promptState.title}</h3>
+            <input
+              autoFocus
+              type="text"
+              value={promptState.value}
+              onChange={e => setPromptState(p => ({ ...p, value: e.target.value }))}
+              onKeyDown={e => {
+                if (e.key === 'Enter') promptState.onSubmit(promptState.value)
+                if (e.key === 'Escape') promptState.onCancel()
+              }}
+              className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors mb-4"
+              placeholder="Enter name..."
+            />
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={promptState.onCancel} className="h-7 px-3 text-xs">Cancel</Button>
+              <Button size="sm" onClick={() => promptState.onSubmit(promptState.value)} className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground">Confirm</Button>
             </div>
           </div>
         </div>

@@ -253,7 +253,7 @@ export default function ActiveDataPage() {
                         {s.slug && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{s.slug}</span>}
                         {hidden && (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${isDanger ? 'text-red-400 border-red-400/40 bg-red-500/10' : 'text-orange-400 border-orange-400/40 bg-orange-500/10'}`}>
-                            {graceLeft > 0 ? `TAB HIDDEN · ${fmtMs(graceLeft)} left` : `Auto clean executed at ${new Date(getTimestamp(s.tabHiddenAt) + 60_000).toLocaleTimeString()}`}
+                            {graceLeft > 0 ? `TAB HIDDEN · ${fmtMs(graceLeft)} left` : `Auto-cleaning in ~30s...`}
                           </span>
                         )}
                       </div>
