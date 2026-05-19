@@ -12,6 +12,7 @@ import {
   Plus, Trash, FilePlus, FolderPlus, ExternalLink
 } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from '@/contexts/AuthContext'
 
 // NEXT_PUBLIC_ prefix is required for env vars to be readable in the browser (Next.js rule)
 const FILE_SERVER = process.env.NEXT_PUBLIC_FILE_SERVER 
@@ -41,6 +42,7 @@ function getLanguage(filename: string): string {
 }
 
 export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
+  const { user } = useAuth()
   const [code, setCode] = useState('// Select a file to view its content')
   const [tree, setTree] = useState<FileNode[]>([])
   const [activeFilePath, setActiveFilePath] = useState('')
@@ -464,7 +466,8 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug: problemDetails.slug,
-          runtimeEnvironment: problemDetails.projectProblem?.runtimeEnvironment
+          runtimeEnvironment: problemDetails.projectProblem?.runtimeEnvironment,
+          userId: user?.id
         }),
       })
       const d = await r.json()
