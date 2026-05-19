@@ -5,13 +5,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Check, Play, Clock, Star, Terminal } from "lucide-react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 import { useDevelopmentProblems } from "@/hooks/useDevelopment"
 import { Loader2 } from "lucide-react"
 
 export function CodeArenaProblemList() {
   const [searchQuery, setSearchQuery] = useState("")
-  const { data: response, isLoading } = useDevelopmentProblems()
+  const searchParams = useSearchParams()
+
+  const filters = {
+    technology: searchParams.get("technology") || undefined,
+    category: searchParams.get("category") || undefined,
+    difficulty: searchParams.get("difficulty") || undefined,
+  }
+
+  const { data: response, isLoading } = useDevelopmentProblems(filters)
 
   const problems = response?.data || []
   const filteredProblems = problems.filter((p: any) => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -50,7 +59,7 @@ export function CodeArenaProblemList() {
           </div>
         ) : filteredProblems.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            No problems found matching your search.
+            No problems found matching your search or filters.
           </div>
         ) : filteredProblems.map((problem: any) => (
           <Link

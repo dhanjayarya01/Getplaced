@@ -1,41 +1,71 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronRight } from "lucide-react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 
 const stacks = [
-  { name: "React", count: 45 },
-  { name: "Next.js", count: 32 },
-  { name: "Node.js", count: 38 },
-  { name: "TypeScript", count: 50 },
-  { name: "Python", count: 28 },
-  { name: "Spring Boot", count: 22 },
-  { name: "MongoDB", count: 18 },
-  { name: "PostgreSQL", count: 25 },
+  { name: "React" },
+  { name: "Next.js" },
+  { name: "Node.js" },
+  { name: "TypeScript" },
+  { name: "Python" },
+  { name: "Spring Boot" },
+  { name: "MongoDB" },
+  { name: "PostgreSQL" },
 ]
 
 const categories = [
-  { name: "State Management", count: 15 },
-  { name: "API Integration", count: 22 },
-  { name: "Authentication", count: 18 },
-  { name: "Database Design", count: 20 },
-  { name: "Performance", count: 12 },
-  { name: "Testing", count: 16 },
-  { name: "DevOps", count: 10 },
+  { name: "State Management" },
+  { name: "API Integration" },
+  { name: "Authentication" },
+  { name: "Database Design" },
+  { name: "Performance" },
+  { name: "Testing" },
+  { name: "DevOps" },
 ]
 
 const difficulties = [
-  { name: "Beginner", count: 40, color: "text-green-500" },
-  { name: "Intermediate", count: 55, color: "text-yellow-500" },
-  { name: "Advanced", count: 25, color: "text-red-500" },
+  { name: "Beginner", color: "text-green-500" },
+  { name: "Intermediate", color: "text-yellow-500" },
+  { name: "Advanced", color: "text-red-500" },
 ]
 
 export function CodeArenaFilters() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const [expandedSections, setExpandedSections] = useState<string[]>(["stacks", "categories", "difficulty"])
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => (prev.includes(section) ? prev.filter((s) => s !== section) : [...prev, section]))
+  }
+
+  const getSelected = useCallback((key: string) => {
+    const val = searchParams.get(key)
+    return val ? val.split(",") : []
+  }, [searchParams])
+
+  const handleFilterChange = (key: string, value: string) => {
+    const current = getSelected(key)
+    const updated = current.includes(value)
+      ? current.filter((item) => item !== value)
+      : [...current, value]
+
+    const params = new URLSearchParams(searchParams.toString())
+    if (updated.length > 0) {
+      params.set(key, updated.join(","))
+    } else {
+      params.delete(key)
+    }
+
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  const clearFilters = () => {
+    router.push(pathname, { scroll: false })
   }
 
   return (
@@ -62,9 +92,13 @@ export function CodeArenaFilters() {
                 key={stack.name}
                 className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
               >
-                <input type="checkbox" className="rounded border-border" />
+                <input 
+                  type="checkbox" 
+                  className="rounded border-border"
+                  checked={getSelected("technology").includes(stack.name)}
+                  onChange={() => handleFilterChange("technology", stack.name)}
+                />
                 <span className="flex-1">{stack.name}</span>
-                <span className="text-xs">{stack.count}</span>
               </label>
             ))}
           </div>
@@ -91,9 +125,13 @@ export function CodeArenaFilters() {
                 key={cat.name}
                 className="flex items-center gap-2 text-sm cursor-pointer py-1 hover:text-foreground text-muted-foreground"
               >
-                <input type="checkbox" className="rounded border-border" />
+                <input 
+                  type="checkbox" 
+                  className="rounded border-border"
+                  checked={getSelected("category").includes(cat.name)}
+                  onChange={() => handleFilterChange("category", cat.name)}
+                />
                 <span className="flex-1">{cat.name}</span>
-                <span className="text-xs">{cat.count}</span>
               </label>
             ))}
           </div>
@@ -117,16 +155,20 @@ export function CodeArenaFilters() {
           <div className="space-y-1 mt-2">
             {difficulties.map((diff) => (
               <label key={diff.name} className="flex items-center gap-2 text-sm cursor-pointer py-1">
-                <input type="checkbox" className="rounded border-border" />
+                <input 
+                  type="checkbox" 
+                  className="rounded border-border"
+                  checked={getSelected("difficulty").includes(diff.name)}
+                  onChange={() => handleFilterChange("difficulty", diff.name)}
+                />
                 <span className={`flex-1 ${diff.color}`}>{diff.name}</span>
-                <span className="text-xs text-muted-foreground">{diff.count}</span>
               </label>
             ))}
           </div>
         )}
       </div>
 
-      <Button variant="outline" size="sm" className="w-full mt-4 bg-transparent">
+      <Button variant="outline" size="sm" className="w-full mt-4 bg-transparent" onClick={clearFilters}>
         Clear All Filters
       </Button>
     </div>
