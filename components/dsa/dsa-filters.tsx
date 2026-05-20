@@ -57,16 +57,27 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
     }
   }
 
-  // Use API options directly to show ALL available tags
+  // Static taxonomy + any extra tags returned by the API, with counts (0 if unused).
   const getDataStructuresWithCounts = () => {
-    if (!filterOptions?.dataStructures) return []
-    // Sort by name
-    return [...filterOptions.dataStructures].sort((a, b) => a._id.localeCompare(b._id))
+    const fromApi = filterOptions?.dataStructures?.map((x) => x._id) || []
+    const names = Array.from(new Set([...ALL_DATA_STRUCTURES, ...fromApi]))
+    return names
+      .map((name) => {
+        const found = filterOptions?.dataStructures?.find((f) => f._id === name)
+        return { _id: name, count: found?.count || 0 }
+      })
+      .sort((a, b) => a._id.localeCompare(b._id))
   }
 
   const getPatternsWithCounts = () => {
-    if (!filterOptions?.patterns) return []
-    return [...filterOptions.patterns].sort((a, b) => a._id.localeCompare(b._id))
+    const fromApi = filterOptions?.patterns?.map((x) => x._id) || []
+    const names = Array.from(new Set([...ALL_PATTERNS, ...fromApi]))
+    return names
+      .map((name) => {
+        const found = filterOptions?.patterns?.find((f) => f._id === name)
+        return { _id: name, count: found?.count || 0 }
+      })
+      .sort((a, b) => a._id.localeCompare(b._id))
   }
 
   const getDifficultiesWithCounts = () => {
