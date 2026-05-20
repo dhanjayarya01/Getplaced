@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, Check, RotateCcw, ChevronLeft, Lightbulb, BookOpen, MessageSquare, Building2, Bot } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DSAAiTutor } from "@/components/dsa/dsa-ai-tutor"
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels"
+import { PanelGroup, Panel, PanelResizeHandle, type ImperativePanelHandle } from "react-resizable-panels"
+import { useVapi } from "@/components/interviews/vapi-provider"
+import { cn } from "@/lib/utils"
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false })
 
@@ -49,6 +51,25 @@ export function DSAWorkspace({
   const [activeTab, setActiveTab] = useState<"problem" | "solution" | "discussion">("problem")
   const [selectedTestCase, setSelectedTestCase] = useState<number>(0)
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false)
+  const aiPanelRef = useRef<ImperativePanelHandle>(null)
+  const { isCallActive } = useVapi()
+
+  const tutorRunningInBackground = aiEnabled && isCallActive && !aiSidebarOpen
+
+  const hideAiSidebar = () => {
+    setAiSidebarOpen(false)
+    aiPanelRef.current?.collapse()
+  }
+
+  const showAiSidebar = () => {
+    setAiSidebarOpen(true)
+    aiPanelRef.current?.expand()
+  }
+
+  const handleToggleAiSidebar = () => {
+    if (aiSidebarOpen) hideAiSidebar()
+    else showAiSidebar()
+  }
 
   useEffect(() => {
     if (testResults?.type === 'run' && !testResults.accepted) {
@@ -72,10 +93,21 @@ export function DSAWorkspace({
 
   
   return (
-    <PanelGroup direction="horizontal" className="h-full overflow-hidden bg-background">
+    <PanelGroup
+      direction="horizontal"
+      className="h-full overflow-hidden bg-background"
+      autoSaveId={aiEnabled ? "dsa-workspace-with-ai" : "dsa-workspace"}
+    >
 
       {/* ── LEFT: Problem Description ───────────────────────────── */}
-      <Panel defaultSize={aiSidebarOpen ? 30 : 45} minSize={20} maxSize={60} className="overflow-hidden flex flex-col border-r border-border">
+      <Panel
+        id="dsa-problem"
+        order={1}
+        defaultSize={aiEnabled ? 32 : 45}
+        minSize={20}
+        maxSize={aiEnabled ? 50 : 60}
+        className="overflow-hidden flex flex-col border-r border-border"
+      >
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             <Link href={backLink} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
@@ -88,8 +120,25 @@ export function DSAWorkspace({
                 <span className={`px-2 py-1 rounded-full text-sm ${getDifficultyColor(problem.difficulty)}`}>{problem.difficulty}</span>
               </div>
               {aiEnabled && (
-                <Button variant={aiSidebarOpen ? "secondary" : "outline"} size="sm" onClick={() => setAiSidebarOpen(!aiSidebarOpen)} className="gap-2">
-                  <Bot className="w-4 h-4" />{aiSidebarOpen ? "Hide AI" : "AI Tutor"}
+                <Button
+                  variant={aiSidebarOpen ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={handleToggleAiSidebar}
+                  title={tutorRunningInBackground ? "AI Tutor is active — click to show" : undefined}
+                  className={cn(
+                    "gap-2 relative",
+                    tutorRunningInBackground &&
+                      "border-green-500 text-green-600 dark:text-green-400 ring-2 ring-green-500/70 animate-pulse shadow-[0_0_14px_rgba(34,197,94,0.4)]"
+                  )}
+                >
+                  <Bot className="w-4 h-4" />
+                  {aiSidebarOpen ? "Hide AI" : "AI Tutor"}
+                  {tutorRunningInBackground && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+                    </span>
+                  )}
                 </Button>
               )}
             </div>
@@ -166,21 +215,49 @@ export function DSAWorkspace({
         </div>
       </Panel>
 
-      {/* Horizontal drag handle */}
-      <PanelResizeHandle className="w-[4px] bg-border hover:bg-primary/60 transition-colors cursor-col-resize" />
+      {/* Horizontal drag handle — problem ↔ AI (or problem ↔ editor when AI collapsed) */}
+      <PanelResizeHandle
+        id="dsa-problem-ai-handle"
+        className="w-[4px] bg-border hover:bg-primary/60 transition-colors cursor-col-resize"
+      />
 
-      {/* ── MIDDLE: AI Sidebar (conditional) ───────────────────── */}
-      {aiEnabled && aiSidebarOpen && (
+      {/* ── MIDDLE: AI Sidebar (always mounted when enabled; collapsed = hidden but session keeps running) */}
+      {aiEnabled && (
         <>
-          <Panel defaultSize={30} minSize={20} maxSize={45} className="border-r border-border bg-card flex flex-col">
-            <DSAAiTutor problem={problem} code={code} language={language} onClose={() => setAiSidebarOpen(false)} onCodeChange={onCodeChange} />
+          <Panel
+            ref={aiPanelRef}
+            id="dsa-ai-tutor"
+            order={2}
+            collapsible
+            collapsedSize={0}
+            defaultSize={0}
+            minSize={18}
+            maxSize={42}
+            onCollapse={() => setAiSidebarOpen(false)}
+            onExpand={() => setAiSidebarOpen(true)}
+            className="border-r border-border bg-card flex flex-col overflow-hidden"
+          >
+            <DSAAiTutor
+              problem={problem}
+              code={code}
+              language={language as "javascript" | "python" | "java" | "cpp" | "c"}
+              onClose={hideAiSidebar}
+              onCodeChange={onCodeChange}
+            />
           </Panel>
-          <PanelResizeHandle className="w-[4px] bg-border hover:bg-primary/60 transition-colors cursor-col-resize" />
+          <PanelResizeHandle
+            id="dsa-ai-editor-handle"
+            disabled={!aiSidebarOpen}
+            className={cn(
+              "w-[4px] bg-border hover:bg-primary/60 transition-colors cursor-col-resize",
+              !aiSidebarOpen && "w-0 min-w-0 p-0 border-0 opacity-0 pointer-events-none"
+            )}
+          />
         </>
       )}
 
       {/* ── RIGHT: Editor + Test Cases (vertical split) ─────────── */}
-      <Panel minSize={25} className="flex flex-col overflow-hidden">
+      <Panel id="dsa-editor" order={aiEnabled ? 3 : 2} minSize={25} className="flex flex-col overflow-hidden">
         <PanelGroup direction="vertical" className="flex-1 overflow-hidden">
 
           {/* Editor section */}
