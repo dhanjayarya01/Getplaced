@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Bot, Mic, MicOff, X, User, Minimize2 } from 'lucide-react'
 import { useVapi } from "@/components/interviews/vapi-provider"
 import { Input } from "@/components/ui/input"
@@ -20,7 +19,7 @@ export function DSAAiTutor({ problem, code, language, onClose, onCodeChange }: D
   const [isStarting, setIsStarting] = useState(false)
   const [voiceLanguage, setVoiceLanguage] = useState<'English' | 'Hindi'>('English')
   const [isMinimized, setIsMinimized] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const transcriptScrollRef = useRef<HTMLDivElement>(null)
   
   // Use ref to always get the latest code value (fixes stale closure issue)
   const codeRef = useRef<string>(code)
@@ -36,11 +35,11 @@ export function DSAAiTutor({ problem, code, language, onClose, onCodeChange }: D
     codeRef.current = code
   }, [code])
 
-  // Auto-scroll to bottom of transcript
+  // Auto-scroll transcript only (avoid scrollIntoView — it scrolls ancestors and shifts the footer)
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
+    const container = transcriptScrollRef.current
+    if (!container) return
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
   }, [transcript])
 
   const handleStartSession = async () => {
@@ -518,7 +517,7 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
   return (
     <div className="flex flex-col h-full bg-card border-l border-border">
       {/* Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between bg-primary/5">
+      <div className="shrink-0 p-4 border-b border-border flex items-center justify-between bg-primary/5">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 font-semibold">
             <Bot className="w-5 h-5 text-primary" />
@@ -560,7 +559,7 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
 
       {/* Main Content - Hidden when minimized */}
       {!isMinimized && (
-      <div className="flex-1 overflow-hidden relative flex flex-col">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {!isCallActive ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
             <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 p-6 rounded-full">
@@ -606,9 +605,12 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
             </Button>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col">
-            {/* Conversation View */}
-            <ScrollArea className="flex-1 p-4">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Conversation View — scroll contained here so footer stays fixed */}
+            <div
+              ref={transcriptScrollRef}
+              className="flex-1 min-h-0 overflow-y-auto p-4 overscroll-contain"
+            >
               <div className="space-y-4">
                 {isCallActive && !hasSpoken && transcript.length === 0 && (
                   <div className="text-xs mb-1 flex items-center gap-2 text-muted-foreground bg-muted/50 p-2 rounded">
@@ -654,15 +656,13 @@ Remember: You're a HUMAN tutor, not a robot. Be patient, encouraging, and conver
                         </div>
                       </div>
                     ))}
-                    {/* Invisible element for auto-scroll */}
-                    <div ref={messagesEndRef} />
                   </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
-            {/* Controls */}
-            <div className="border-t border-border p-4 bg-card/50 backdrop-blur">
+            {/* Controls — pinned below transcript scroll area */}
+            <div className="shrink-0 border-t border-border p-4 bg-card">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
