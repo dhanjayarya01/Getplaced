@@ -84,6 +84,9 @@ export function DSAProblemView({ problemId, initialCode, initialLanguage, aiEnab
 
   const handleLanguageChange = (newLanguage: string) => {
     setLanguage(newLanguage)
+    // ⚠️ Critical: clear the draft so stale code from another language isn't submitted
+    // e.g. C++ draft code should never be run through the Java runner
+    localCache.codeDrafts.delete(problemId)
     const newStarterCode = problem?.starterCode?.[newLanguage] || getDefaultStarterCode(newLanguage)
     setCode(newStarterCode ? newStarterCode.replace(/\\n/g, '\n') : '')
   }
