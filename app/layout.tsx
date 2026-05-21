@@ -15,7 +15,11 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "GetPlaced - Your Complete Placement Preparation Platform",
   description: "Master DSA, ace interviews, solve dev problems, and prepare for your dream company with GetPlaced",
-    generator: 'v0.app'
+  generator: 'v0.app',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/apple-icon.png',
+  }
 }
 
 export default function RootLayout({
