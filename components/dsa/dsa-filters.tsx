@@ -16,20 +16,47 @@ interface DSAFiltersProps {
   onFilterChange: (filters: any) => void
 }
 
-// Fallback filter options (used only when API returns nothing for that category)
+/**
+ * Canonical set of tags that are classified as "Data Structures".
+ * Everything else in the `patterns` API field is treated as an algorithm pattern.
+ *
+ * NOTE: The DB stores ALL tags (both DS and algorithm patterns) under the
+ * `patterns` field. The `dataStructures` field is sparsely populated and
+ * should NOT be used for counts. We split the `patterns` list here on the
+ * frontend using this known set.
+ */
+const DATA_STRUCTURE_TAGS = new Set([
+  'Array',
+  'String',
+  'Linked List',
+  'Doubly-Linked List',
+  'Stack',
+  'Queue',
+  'Monotonic Queue',
+  'Monotonic Stack',
+  'Tree',
+  'Binary Tree',
+  'Binary Search Tree',
+  'Graph',
+  'Heap',
+  'Heap (Priority Queue)',
+  'Hash Table',
+  'Trie',
+  'Matrix',
+  'Ordered Set',
+  'Segment Tree',
+  'Binary Indexed Tree',
+  'Suffix Array',
+  'Iterator',
+])
+
 const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard']
-const FALLBACK_DATA_STRUCTURES = [
-  'Array', 'String', 'Linked List', 'Stack', 'Queue',
-  'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie',
-]
-const FALLBACK_PATTERNS = [
-  'Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS',
-  'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer',
-]
 
 export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(["ds", "patterns", "difficulty"])
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null)
+  // Both DS and pattern selections are tracked together as "patternTags" because
+  // the backend queries the `patterns` field for both.
   const [selectedDataStructures, setSelectedDataStructures] = useState<string[]>([])
   const [selectedPatterns, setSelectedPatterns] = useState<string[]>([])
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([])
@@ -47,7 +74,6 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
       }
     } catch (error) {
       console.error('Error fetching filter options:', error)
-      // Even if API fails, we can still show static options
       setFilterOptions({
         difficulties: [],
         dataStructures: [],
@@ -57,25 +83,20 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
     }
   }
 
-  // Use API data when available; fall back to static list only if API returns nothing.
+  /**
+   * Split the `patterns` API array into Data Structure tags vs Algorithm Pattern tags.
+   * The `dataStructures` API field is ignored because it is sparsely populated.
+   */
   const getDataStructuresWithCounts = () => {
-    const apiData = filterOptions?.dataStructures || []
-    if (apiData.length > 0) {
-      // Trust the API — it already knows which tags are Data Structures
-      return [...apiData].sort((a, b) => a._id.localeCompare(b._id))
-    }
-    // Fallback: show static list with 0 counts
-    return FALLBACK_DATA_STRUCTURES.map((name) => ({ _id: name, count: 0 }))
+    const allPatterns = filterOptions?.patterns || []
+    const dsTags = allPatterns.filter((item) => DATA_STRUCTURE_TAGS.has(item._id))
+    return [...dsTags].sort((a, b) => a._id.localeCompare(b._id))
   }
 
   const getPatternsWithCounts = () => {
-    const apiData = filterOptions?.patterns || []
-    if (apiData.length > 0) {
-      // Trust the API — it already knows which tags are Patterns
-      return [...apiData].sort((a, b) => a._id.localeCompare(b._id))
-    }
-    // Fallback: show static list with 0 counts
-    return FALLBACK_PATTERNS.map((name) => ({ _id: name, count: 0 }))
+    const allPatterns = filterOptions?.patterns || []
+    const algoTags = allPatterns.filter((item) => !DATA_STRUCTURE_TAGS.has(item._id))
+    return [...algoTags].sort((a, b) => a._id.localeCompare(b._id))
   }
 
   const getDifficultiesWithCounts = () => {
@@ -98,9 +119,11 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
   }
 
   const applyFilters = () => {
+    // Both data structure tags and pattern tags are sent as `pattern` because
+    // the backend queries the `patterns` field for both (that's where the DB has them).
+    const allPatternSelections = [...selectedDataStructures, ...selectedPatterns]
     onFilterChange({
-      dataStructures: selectedDataStructures,
-      patterns: selectedPatterns,
+      patterns: allPatternSelections,
       difficulties: selectedDifficulties,
       companies: selectedCompanies
     })
