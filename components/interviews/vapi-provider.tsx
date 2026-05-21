@@ -46,28 +46,46 @@ export function VapiProvider({ children }: { children: ReactNode }) {
           setHasSpoken(true)
         }
         
-        // Handle VAPI tool-calls (function calling)
-        if (message.type === 'tool-calls' && onFunctionCall && message.toolCalls?.length > 0) {
-          const toolCall = message.toolCalls[0]
-          console.log('🔧 Function call detected!', toolCall)
-          
-          // Extract function name and parameters
-          const functionName = toolCall.function?.name || toolCall.name
-          const functionArgs = toolCall.function?.arguments || toolCall.arguments || toolCall.parameters
-          const toolCallId = toolCall.id
-          
-          // Parse arguments if they're a string
-          const parsedArgs = typeof functionArgs === 'string' 
-            ? JSON.parse(functionArgs) 
-            : functionArgs
-          
+        // Handle VAPI function calls — SDK may send either 'function-call' or 'tool-calls'
+        const isFunctionCall = message.type === 'function-call'
+        const isToolCalls = message.type === 'tool-calls' && message.toolCalls?.length > 0
+
+        if ((isFunctionCall || isToolCalls) && onFunctionCall) {
+          let functionName: string
+          let functionArgs: any
+          let toolCallId: string
+
+          if (isFunctionCall) {
+            // Shape: { type: 'function-call', functionCallId, functionCall: { name, parameters } }
+            functionName = message.functionCall?.name
+            functionArgs = message.functionCall?.parameters ?? message.functionCall?.arguments
+            toolCallId = message.functionCallId || message.id || ''
+            console.log('🔧 function-call received:', functionName, functionArgs)
+          } else {
+            // Shape: { type: 'tool-calls', toolCalls: [{ id, function: { name, arguments } }] }
+            const toolCall = message.toolCalls[0]
+            functionName = toolCall.function?.name || toolCall.name
+            functionArgs = toolCall.function?.arguments || toolCall.arguments || toolCall.parameters
+            toolCallId = toolCall.id || ''
+            console.log('🔧 tool-calls received:', functionName, functionArgs)
+          }
+
+          // Parse arguments if they are a JSON string
+          let parsedArgs: any = {}
+          try {
+            parsedArgs = typeof functionArgs === 'string'
+              ? JSON.parse(functionArgs)
+              : (functionArgs ?? {})
+          } catch (e) {
+            console.error('❌ Failed to parse function args:', functionArgs, e)
+          }
+
           console.log('✅ Calling function:', functionName, 'with args:', parsedArgs)
-          
-          // Call the function handler
+
+          // Call the function handler and send result back
           onFunctionCall(functionName, parsedArgs).then((result: any) => {
             if (result) {
               console.log('📤 Function returned result, sending back to VAPI...')
-              // Send the result back to VAPI so the AI model can see it
               vapiService.sendToolResult(toolCallId, result)
             }
           }).catch((error: any) => {

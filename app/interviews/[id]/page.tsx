@@ -23,11 +23,17 @@ export default function InterviewDetailPage() {
   const fetchInterview = async () => {
     try {
       const response = await apiService.mockInterviews.getById(params.id as string)
+      if (!response || !response.success || !response.data) {
+        console.error("Interview not found or API error:", response)
+        setInterview(null)
+        return
+      }
       setInterview(response.data)
-      setDifficulty(response.data.interviewStages[0]?.difficulty || "Medium")
-      setStrictness(response.data.interviewStages[0]?.strictness || 5)
+      setDifficulty(response.data.interviewStages?.[0]?.difficulty || "Medium")
+      setStrictness(response.data.interviewStages?.[0]?.strictness || 5)
     } catch (error) {
       console.error("Failed to fetch interview:", error)
+      setInterview(null)
     } finally {
       setLoading(false)
     }

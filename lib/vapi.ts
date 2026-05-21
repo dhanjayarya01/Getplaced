@@ -119,8 +119,10 @@ class VapiService {
             
             // Listen to ALL messages with debugging
             this.vapi.on('message', (message: any) => {
-                // Log only non-transcript messages to avoid clutter, or log everything if needed
-                if (message.type !== 'transcript') {
+                // Always log function-call/tool-calls in full for debugging
+                if (message.type === 'function-call' || message.type === 'tool-calls') {
+                    console.log('🔧 [VAPI FUNCTION EVENT] Full message:', JSON.stringify(message, null, 2))
+                } else if (message.type !== 'transcript') {
                     console.log('📨 VAPI Message:', message.type, message)
                 }
 
@@ -194,31 +196,41 @@ class VapiService {
         }
 
         try {
-            // VAPI Web SDK: inject the function result as a system message
-            // Client-side VAPI doesn't support direct function-call responses
-            // We need to add it as a message that the AI can see
-            console.log('📤 Injecting tool result into conversation:', { toolCallId, result })
+            console.log('📤 Sending tool result to VAPI:', { toolCallId, result })
 
             // Parse the result if it's a JSON string
-            let resultData = result
+            let resultData: any = result
             try {
                 resultData = typeof result === 'string' ? JSON.parse(result) : result
             } catch (e) {
-                // If not JSON, use as-is
+                // Not JSON — use as-is string
+                resultData = result
             }
 
-            // Inject as a system message containing the function result
-            this.vapi.send({
-                type: 'add-message',
-                message: {
-                    role: 'system',
-                    content: `Function call result for ${toolCallId}:\n${resultData.message || JSON.stringify(resultData)}`
-                }
-            })
-
-            console.log('✅ Tool result injected successfully')
+            // Primary: VAPI Web SDK proper tool-call-result format
+            // This correctly closes the function-call loop so the AI doesn't re-call with empty args
+            try {
+                this.vapi.send({
+                    type: 'tool-call-result',
+                    toolCallId: toolCallId,
+                    result: typeof resultData === 'string' ? resultData : JSON.stringify(resultData)
+                } as any)
+                console.log('✅ Tool result sent via tool-call-result')
+            } catch (sendError) {
+                // Fallback: inject as system message (older SDK versions)
+                console.warn('⚠️ tool-call-result failed, falling back to add-message:', sendError)
+                this.vapi.send({
+                    type: 'add-message',
+                    message: {
+                        role: 'tool',
+                        toolCallId: toolCallId,
+                        content: typeof resultData === 'string' ? resultData : JSON.stringify(resultData)
+                    }
+                } as any)
+                console.log('✅ Tool result sent via add-message fallback')
+            }
         } catch (error) {
-            console.error('Error sending tool result:', error)
+            console.error('❌ Error sending tool result:', error)
         }
     }
 }
