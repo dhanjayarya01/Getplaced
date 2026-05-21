@@ -16,15 +16,15 @@ interface DSAFiltersProps {
   onFilterChange: (filters: any) => void
 }
 
-// All possible filter options (always show these)
+// Fallback filter options (used only when API returns nothing for that category)
 const ALL_DIFFICULTIES = ['Easy', 'Medium', 'Hard']
-const ALL_DATA_STRUCTURES = [
-  'Array', 'String', 'Linked List', 'Stack', 'Queue', 
-  'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie'
+const FALLBACK_DATA_STRUCTURES = [
+  'Array', 'String', 'Linked List', 'Stack', 'Queue',
+  'Tree', 'Graph', 'Heap', 'Hash Table', 'Trie',
 ]
-const ALL_PATTERNS = [
+const FALLBACK_PATTERNS = [
   'Two Pointers', 'Sliding Window', 'Binary Search', 'DFS', 'BFS',
-  'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer'
+  'Dynamic Programming', 'Backtracking', 'Greedy', 'Divide and Conquer',
 ]
 
 export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
@@ -57,27 +57,25 @@ export function DSAFilters({ onFilterChange }: DSAFiltersProps) {
     }
   }
 
-  // Static taxonomy + any extra tags returned by the API, with counts (0 if unused).
+  // Use API data when available; fall back to static list only if API returns nothing.
   const getDataStructuresWithCounts = () => {
-    const fromApi = filterOptions?.dataStructures?.map((x) => x._id) || []
-    const names = Array.from(new Set([...ALL_DATA_STRUCTURES, ...fromApi]))
-    return names
-      .map((name) => {
-        const found = filterOptions?.dataStructures?.find((f) => f._id === name)
-        return { _id: name, count: found?.count || 0 }
-      })
-      .sort((a, b) => a._id.localeCompare(b._id))
+    const apiData = filterOptions?.dataStructures || []
+    if (apiData.length > 0) {
+      // Trust the API — it already knows which tags are Data Structures
+      return [...apiData].sort((a, b) => a._id.localeCompare(b._id))
+    }
+    // Fallback: show static list with 0 counts
+    return FALLBACK_DATA_STRUCTURES.map((name) => ({ _id: name, count: 0 }))
   }
 
   const getPatternsWithCounts = () => {
-    const fromApi = filterOptions?.patterns?.map((x) => x._id) || []
-    const names = Array.from(new Set([...ALL_PATTERNS, ...fromApi]))
-    return names
-      .map((name) => {
-        const found = filterOptions?.patterns?.find((f) => f._id === name)
-        return { _id: name, count: found?.count || 0 }
-      })
-      .sort((a, b) => a._id.localeCompare(b._id))
+    const apiData = filterOptions?.patterns || []
+    if (apiData.length > 0) {
+      // Trust the API — it already knows which tags are Patterns
+      return [...apiData].sort((a, b) => a._id.localeCompare(b._id))
+    }
+    // Fallback: show static list with 0 counts
+    return FALLBACK_PATTERNS.map((name) => ({ _id: name, count: 0 }))
   }
 
   const getDifficultiesWithCounts = () => {
