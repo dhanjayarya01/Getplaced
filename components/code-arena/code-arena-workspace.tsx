@@ -440,8 +440,9 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         } catch (ce: any) { setIsPreviewLoading(false); addLog(`$ ✗ Compile error: ${ce.message}`) }
 
       } else if (!isJavaFile && isPreviewReady) {
-        // Vite/Node/Python: reload after chokidar detects file change
-        reloadPreview(1200)
+        // For Vite/Node projects, rely on native HMR or manual refresh
+        // Do NOT force iframe reload to prevent disrupting Vite's HMR websocket
+        setIsPreviewLoading(false)
       } else {
         setIsPreviewLoading(false)
       }
