@@ -457,7 +457,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sessionId, activeFilePath, code])
+  }, [sessionId, activeFilePath, code, isPreviewReady])
 
   const startPolling = (sid: string, url: string) => {
     let elapsed = 0
