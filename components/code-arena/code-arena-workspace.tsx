@@ -440,8 +440,10 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
         } catch (ce: any) { setIsPreviewLoading(false); addLog(`$ ✗ Compile error: ${ce.message}`) }
 
       } else if (!isJavaFile && isPreviewReady) {
-        // For Vite/Node projects, rely on native HMR or manual refresh
-        // Do NOT force iframe reload to prevent disrupting Vite's HMR websocket
+        // For Vite/Node projects, HMR might be disabled or broken
+        // The user specifically requested to restore the auto-reload behavior on save
+        addLog(`$ ✓ Saved! Reloading preview...`)
+        reloadPreview(600)
         setIsPreviewLoading(false)
       } else {
         setIsPreviewLoading(false)
