@@ -33,17 +33,48 @@ export function CodingInterviewLayout({ session, interview, systemPrompt }: Codi
   const [isRunning, setIsRunning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // Ref to access current code in callbacks without dependency issues
   const codeRef = useRef(code)
+  const languageRef = useRef(language)  // always holds live language — avoids stale closure in readCode
   
-  // Track latest call IDs to prevent duplicate function calls (like DSA Tutor)
-  const latestSearchCallIdRef = useRef(0)
+  // Track latest call IDs to prevent duplicate function calls
   const latestLoadCallIdRef = useRef(0)
   const latestCreateCallIdRef = useRef(0)
   
+  // Track problem loading state for UI feedback
+  const [isLoadingProblem, setIsLoadingProblem] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+
+  // Keep refs in sync with state
   useEffect(() => {
     codeRef.current = code
   }, [code])
+
+  useEffect(() => {
+    languageRef.current = language
+  }, [language])
+
+  // ── Auto-inject code into VAPI context on every change (debounced) ──
+  // Instead of readCode() function (which VAPI routes to server webhook),
+  // we push the code directly into VAPI's conversation as a system message.
+  // The AI sees it immediately in its context with no function call needed.
+  const codeInjectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!isCallActive) return   // only inject during active call
+    if (codeInjectTimerRef.current) clearTimeout(codeInjectTimerRef.current)
+    codeInjectTimerRef.current = setTimeout(() => {
+      try {
+        const currentCode = codeRef.current
+        const currentLang = languageRef.current
+        const snippet = currentCode.trim()
+          ? `\n\n[CANDIDATE CODE UPDATE — ${currentLang}]\n\`\`\`${currentLang}\n${currentCode}\n\`\`\`\nThis is the candidate's current code. Use this for evaluation when asked.`
+          : `\n\n[CANDIDATE CODE UPDATE]\nThe editor is currently empty — the candidate hasn't written code yet.`
+        vapiService.injectSystemMessage(snippet)
+        console.log('💉 Code auto-injected into VAPI context')
+      } catch (e) {
+        // Silently ignore injection errors — not critical
+      }
+    }, 2000)   // 2-second debounce — only inject after typing pauses
+  }, [code, isCallActive])
 
   // Load appropriate problem
   useEffect(() => {
@@ -91,273 +122,274 @@ export function CodingInterviewLayout({ session, interview, systemPrompt }: Codi
 
 
   useEffect(() => {
-    // CODING INTERVIEW PROMPT - Defined on frontend (like DSA Tutor)
+    // CODING INTERVIEW PROMPT - fallback if backend doesn't provide one
     const codingInterviewPrompt = `You are Tanya, an expert coding interviewer.
 
-🎯 YOUR ROLE: Conduct a technical coding interview.
+🚨 ABSOLUTE RULES:
+1. The problem is ALREADY loaded on the candidate's screen before this call started.
+2. Do NOT call searchDSAProblems or loadDSAProblem — they are disabled.
+3. ALWAYS call readCode() before giving any code feedback — never assume what they wrote.
+4. Call submitFeedback() ONLY when the candidate explicitly says they are done AND you have finished giving verbal feedback. NEVER call it due to silence.
+5. NEVER end the session just because there is silence — silence means the candidate is coding.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 CRITICAL RULES - MUST FOLLOW:
+STEP 1: GREETING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. **ABSOLUTELY NEVER SPEAK PROBLEM DETAILS**
-   ❌ DON'T say: "Here's the problem: Find the missing number..."
-   ❌ DON'T say: "### Problem Title: ..."
-   ❌ DON'T describe examples, constraints, or descriptions verbally
-   ❌ DON'T read anything from the problem aloud
-   ✅ ONLY say: "I've loaded a problem. Read it and tell me your approach."
-
-2. **ALWAYS USE FUNCTION CALLS for problems:**
-   - searchDSAProblems({difficulty, tags}) - Find problems
-   - loadDSAProblem({problemId}) - Load specific problem  
-   - createProblem({title, description, examples, constraints}) - MUST have ALL params
-   - readCode() - Check candidate's code
-
-3. **YOUR VOICE = Guide ONLY**
-   ✅ Ask about approach
-   ✅ Give hints
-   ✅ Discuss complexity
-   ❌ Never describe problem content
+Say: "Hey! Great to have you here — I'm Tanya, your coding interviewer today. I've already loaded a question on your screen — are you ready to dive in?"
+Wait silently for confirmation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-INTERVIEW FLOW:
+STEP 2: EXPLAIN THE PROBLEM (when user says ready)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Say: "Perfect! So the problem on your screen is called [PROBLEM_TITLE_PLACEHOLDER].
+Here's a quick summary: [PROBLEM_DESC_PLACEHOLDER].
+[PROBLEM_EXAMPLE_PLACEHOLDER]
+Take a moment to read it on screen. Walk me through your approach first, or jump straight into coding. Let me know when you're done!"
 
-**STEP 1: GREETING**
-"Hey! I'm Tanya. Ready for a coding interview?"
-
-**STEP 2: LOAD PROBLEM** 
-[Call: searchDSAProblems({difficulty: "Medium"})]
-[Call: loadDSAProblem({problemId: "..."})]
-Say: "Problem loaded. Read it and tell me your approach."
-
-**STEP 3: DISCUSS APPROACH**
-"What's your initial thinking?"
-"Any edge cases?"
-"What's the time complexity?"
-
-**STEP 4: MONITOR CODING**
-[Call readCode() every 2-3 min to monitor progress]
-Give hints if stuck, but let them work independently
-
-⏰ **CRITICAL - 4-MINUTE CHECK-IN SYSTEM (MUST FOLLOW EXACTLY):**
-
-**Your Internal Timer:**
-- Track time since last user interaction (speech or typing detected)
-- Every 4 minutes of SILENCE, initiate check-in sequence
-- NOTE: If user is actively speaking or you detect activity, reset timer
-
-**Check-in Sequence (FOLLOW PRECISELY):**
-
-1. **FIRST CHECK (at 4-minute silence mark):**
-   - Say: "Hey, how's it going? Still working on the problem?" OR "Need any help? You've been quiet for a bit."
-   - **WAIT 15 seconds** for ANY response (voice or continued coding activity)
-
-2. **If NO RESPONSE after 15 seconds:**
-   - Say: "I'm not hearing anything. Are you still there?"
-   - **WAIT 30 seconds** for response
-
-3. **If STILL NO RESPONSE after 30 seconds:**
-   - Say: "Looks like we got disconnected or you stepped away. I'll end this session now. Feel free to start a new one when you're back!"
-   - **IMMEDIATELY call endCall or submitFeedback to close**
-
-4. **If they respond at ANY point:**
-   - Reset silence timer to zero
-   - Continue interview normally
-   - Next check-in in 4 minutes
-
-**Important Detection Notes:**
-- If you see code changes via readCode(), user is active → Reset timer
-- If user says "hold on" or "give me a minute" → Reset timer, be patient
-- Only start check-in if truly SILENT (no speech, no code changes detected)
-
-**STEP 5: EVALUATE**
-[Call readCode() final time]
-Give detailed feedback + call submitFeedback()
+Then WAIT silently. Let them code. DO NOT speak unless spoken to during coding.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FUNCTION REQUIREMENTS:
+STEP 3: DURING CODING (SILENCE IS NORMAL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Silence = candidate is coding. DO NOT interrupt.
+Only check in after 5+ minutes of silence: "Hey, how's it going?"
+NEVER call submitFeedback during coding. NEVER end the session automatically.
 
-createProblem - MUST include ALL:
-- title: "Problem Name"
-- description: "<p>Full description</p>"
-- examples: [{input: "...", output: "..."}]
-- constraints: ["1 <= n <= 100"]
-
-❌ NEVER call createProblem({}) empty!
+If candidate says "review my code" or "check my code" or "see my code":
+→ Call readCode() to get their actual code
+→ Give verbal feedback on what you see
+→ Continue the session — do NOT call submitFeedback unless they say they're done
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⏰ TIMING ENFORCEMENT REMINDER:
-✅ Check in every 4 minutes during silence
-✅ First attempt: "How's it going?" → Wait 15 seconds
-✅ Second attempt: "Are you there?" → Wait 30 seconds  
-✅ No response = End call gracefully
-❌ DO NOT interrupt during active coding or conversation
-✅ Reset timer when user responds or code changes
-
-Be friendly, encouraging, and time-aware. Let's begin!`
+STEP 4: EVALUATE (when candidate says done)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Say: "Awesome! Let me take a look at your code."
+Call readCode() — read what they actually wrote.
+Give score/10, 2 strengths, 2 areas to improve verbally.
+THEN call submitFeedback({ score, areasGoodIn, areasToWorkOn }).`
 
     // Use passed systemPrompt if provided, otherwise use default
-    const prompt = systemPrompt || codingInterviewPrompt
+    const basePrompt = systemPrompt || codingInterviewPrompt
     
-    console.log('Using system prompt:', prompt.substring(0, 200) + '...')
-    
-    // Define the 'readCode' tool
-    const additionalFunctions = [
-        {
-            name: "readCode",
-            description: "Read the code currently written by the candidate in the editor. Use this to check their progress, syntax, or logic.",
-            parameters: {
-                type: "object",
-                properties: {},
-            }
-        },
-        {
-            name: "searchDSAProblems",
-            description: "Search for DSA problems in the database. Use this to find appropriate problems for the candidate based on difficulty or topic.",
-            parameters: {
-                type: "object",
-                properties: {
-                    query: {
-                        type: "string",
-                        description: "Search query (e.g., 'two sum', 'array problems')"
-                    },
-                    tags: {
-                        type: "string",
-                        description: "Comma-separated tags (e.g., 'Arrays,HashMap')"
-                    },
-                    difficulty: {
-                        type: "string",
-                        enum: ["Easy", "Medium", "Hard"],
-                        description: "Filter by difficulty"
-                    }
-                }
-            }
-        },
-        {
-            name: "loadDSAProblem",
-            description: "Load a specific DSA problem for the candidate to solve. The problem will appear in the workspace.",
-            parameters: {
-                type: "object",
-                properties: {
-                    problemId: {
-                        type: "string",
-                        description: "The ID of the problem to load"
-                    }
-                },
-                required: ["problemId"]
-            }
-        },
-        {
-            name: "createProblem",
-            description: "Create a custom coding problem for the interview. The problem will appear in the workspace immediately.",
-            parameters: {
-                type: "object",
-                properties: {
-                    title: {
-                        type: "string",
-                        description: "Problem title"
-                    },
-                    description: {
-                        type: "string",
-                        description: "HTML formatted problem description"
-                    },
-                    difficulty: {
-                        type: "string",
-                        enum: ["Easy", "Medium", "Hard"],
-                        description: "Problem difficulty"
-                    },
-                    examples: {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            properties: {
-                                input: { type: "string" },
-                                output: { type: "string" },
-                                explanation: { type: "string" }
-                            }
-                        },
-                        description: "Array of example inputs/outputs"
-                    },
-                    constraints: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Array of constraint strings"
-                    }
-                },
-                required: ["title", "description"]
-            }
+    // ── spoken language & voice ─────────────────────────────────────────
+    const spokenLanguage = (session as any).language || 'English'
+    const voiceId = (session as any).voiceId || '21m00Tcm4TlvDq8ikWAM'
+
+    // ── Only run once, when prompt is available and call isn't active ───
+    if (basePrompt && !isCallActive) {
+
+      // ─────────────────────────────────────────────────────────────────
+      // STEP A: Pre-load a real problem from DB BEFORE starting VAPI.
+      // This runs once and fully resolves before the call starts.
+      // The problem is injected into the system prompt so the AI knows
+      // it from the start — zero function calls needed for loading.
+      // ─────────────────────────────────────────────────────────────────
+      const preLoadAndStart = async () => {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
+        // ── Derive difficulty from stage number ────────────────────────
+        // Stage 1-2 → Easy, Stage 3-4 → Medium, Stage 5+ → Hard
+        const stageNum = Number((session as any)?.currentStage) || 1
+        const difficulty = stageNum <= 2 ? 'Easy' : stageNum <= 4 ? 'Medium' : 'Hard'
+        console.log(`🎯 Stage ${stageNum} → difficulty: ${difficulty}`)
+
+        let loadedProblem: any = null
+        setIsLoadingProblem(true)
+
+        // Helper: fetch full problem by ID
+        const fetchFull = async (id: string) => {
+          try {
+            const r = await fetch(`${apiUrl}/api/dsa/interview/${encodeURIComponent(id)}`)
+            if (!r.ok) return null
+            const d = await r.json()
+            return (d.success && d.data?.problem) ? d.data.problem : null
+          } catch { return null }
         }
-    ]
-    
-    // Auto-start VAPI call with voice and language preferences
-    if (prompt && !isCallActive) {
-      const voiceId = (session as any).voiceId || '21m00Tcm4TlvDq8ikWAM' // Rachel - default
-      const language = (session as any).language || 'English'
-      
-      const handleFunctionCall = async (name: string, args: any) => {
-           if (name === 'readCode') {
-               const currentCode = codeRef.current
-               console.log("👀 AI is reading code:", currentCode)
+
+        // Helper: shuffle array randomly
+        const shuffle = (arr: any[]) => arr
+          .map(item => ({ item, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ item }) => item)
+
+        // Try searches in order: exact difficulty → fallbacks
+        const queries = [
+          `difficulty=${encodeURIComponent(difficulty)}`,
+          difficulty !== 'Easy' ? `difficulty=Easy` : `difficulty=Medium`,
+          `difficulty=Hard`,
+          `` // no filter — get anything
+        ]
+
+        for (const q of queries) {
+          if (loadedProblem) break
+          try {
+            const r = await fetch(`${apiUrl}/api/dsa/interview/search${q ? '?' + q : ''}`)
+            if (!r.ok) continue
+            const d = await r.json()
+            const list: any[] = Array.isArray(d.data) ? d.data : []
+            if (list.length === 0) continue
+
+            // ── RANDOM shuffle before picking — no more always-same problem
+            const randomized = shuffle(list)
+            for (const c of randomized.slice(0, 5)) {
+              const full = await fetchFull(String(c._id))
+              if (full) { loadedProblem = full; break }
+            }
+          } catch { /* try next query */ }
+        }
+
+
+        // Fallback: Two Sum
+        if (!loadedProblem) {
+          loadedProblem = {
+            _id: `fallback-${Date.now()}`,
+            title: 'Two Sum',
+            difficulty,
+            description: '<p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return <em>indices of the two numbers that add up to target</em>. Each input has exactly one solution.</p>',
+            examples: [{ input: 'nums = [2,7,11,15], target = 9', output: '[0,1]', explanation: 'nums[0] + nums[1] = 2 + 7 = 9' }],
+            constraints: ['2 <= nums.length <= 10^4', 'Only one valid answer exists'],
+            starterCode: {
+              javascript: '/**\n * @param {number[]} nums\n * @param {number} target\n * @return {number[]}\n */\nfunction twoSum(nums, target) {\n  \n}',
+              python: 'def two_sum(nums: list[int], target: int) -> list[int]:\n    pass',
+              java: 'class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        \n    }\n}',
+              cpp: 'vector<int> twoSum(vector<int>& nums, int target) {\n    \n}',
+              c: 'int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\n    \n}'
+            },
+            companies: []
+          }
+        }
+
+        // ── Set problem in UI immediately ───────────────────────────────
+        setProblem(loadedProblem)
+        const sc: Record<string, string> = loadedProblem.starterCode || {}
+        setCode(sc[language] || sc['javascript'] || '')
+        setTestResults(null)
+        setIsLoadingProblem(false)
+
+        console.log('✅ Problem pre-loaded:', loadedProblem.title)
+
+        // ── Build full plain-text problem context for the AI ──────────
+        const plainDesc = String(loadedProblem.description || '')
+          .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400)
+        const examplesText = (Array.isArray(loadedProblem.examples) ? loadedProblem.examples : [])
+          .slice(0, 2)
+          .map((ex: any, i: number) => `  Example ${i + 1}: Input = ${ex.input} → Output = ${ex.output}${ex.explanation ? ` (${ex.explanation})` : ''}`)
+          .join('\n')
+        const constraintsText = (Array.isArray(loadedProblem.constraints) ? loadedProblem.constraints : [])
+          .slice(0, 3).join('; ')
+
+        // ── ALWAYS APPEND problem context — never rely on placeholders ─
+        // .replace() silently does nothing if backend prompt uses old format.
+        // Appending guarantees the AI ALWAYS knows the problem, regardless
+        // of session age or which backend version generated the prompt.
+        const problemContext = `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 PRE-LOADED PROBLEM (Candidate's Screen)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Title: ${loadedProblem.title}
+Difficulty: ${loadedProblem.difficulty || difficulty}
+Description: ${plainDesc}
+${examplesText ? 'Examples:\n' + examplesText : ''}
+${constraintsText ? 'Constraints: ' + constraintsText : ''}
+
+This problem is ALREADY showing on the candidate's screen.
+You know exactly what it is — use this when introducing, explaining, or evaluating their solution.
+Do NOT call any function to load or search for a problem.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+
+        // Also fill placeholders if they exist in the backend prompt (for new sessions)
+        const prompt = basePrompt
+          .replace('[PROBLEM_TITLE_PLACEHOLDER]', loadedProblem.title)
+          .replace('[PROBLEM_DESC_PLACEHOLDER]', plainDesc)
+          .replace('[PROBLEM_EXAMPLE_PLACEHOLDER]', examplesText || '')
+          + problemContext
+
+        console.log('✅ Problem context injected into prompt for:', loadedProblem.title)
+
+
+        // ── Functions available to the AI ──────────────────────────────
+        // readCode: uses codeRef.current (same pattern as dsa-ai-tutor.tsx)
+        // Result is returned directly from client handler — no server webhook.
+        const additionalFunctions = [
+          {
+            name: "readCode",
+            description: "Read the code currently written by the candidate in the editor. ALWAYS call this before giving any code feedback.",
+            parameters: { type: "object", properties: {}, required: [] }
+          },
+          {
+            name: "createProblem",
+            description: "Create a custom coding problem if the candidate requests a different one.",
+            parameters: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Problem title" },
+                description: { type: "string", description: "HTML formatted problem description" },
+                difficulty: { type: "string", enum: ["Easy", "Medium", "Hard"] },
+                examples: { type: "array", items: { type: "object", properties: { input: { type: "string" }, output: { type: "string" }, explanation: { type: "string" } } } },
+                constraints: { type: "array", items: { type: "string" } }
+              },
+              required: ["title", "description"]
+            }
+          }
+        ]
+
+        // ── handleFunctionCall (no searchDSAProblems handler needed) ───
+        const handleFunctionCall = async (name: string, args: any) => {
+
+            if (name === 'readCode') {
+                const currentCode = codeRef.current
+                const currentLang = languageRef.current   // use ref — not stale closure
+                const codePreview = currentCode.trim() || "// No code written yet"
+                
+                console.log("👀 AI is reading code (", currentLang, "):\n", currentCode.substring(0, 200))
+                
+                const result = JSON.stringify({
+                    success: true,
+                    language: currentLang,
+                    code: codePreview,
+                    lineCount: currentCode.split('\n').length,
+                    isEmpty: !currentCode.trim(),
+                    message: currentCode.trim() 
+                        ? `Candidate's current ${currentLang} code (${currentCode.split('\n').length} lines):\n\n${codePreview}` 
+                        : "The candidate hasn't written any code yet."
+                })
+                
+                return result
+            }
+
+           // ── Guard: prevent repeat searchDSAProblems calls ──────────
+           if (name === 'searchDSAProblems' && problemAlreadyLoading) {
+               console.log('🚫 searchDSAProblems called again — problem already loading/loaded, ignoring')
                return JSON.stringify({
                    success: true,
-                   language: language,
-                   code: currentCode,
-                   lineCount: currentCode.split('\n').length,
-                   isEmpty: !currentCode.trim()
+                   problemLoaded: true,
+                   alreadyLoading: true,
+                   message: 'Problem is already loading or loaded. Stop calling this function. Read the speakNow text you already received and speak it now.'
                })
            }
-           
            if (name === 'searchDSAProblems') {
-               try {
-                   console.log("🔍 AI searching for problems:", args)
-                   const params = new URLSearchParams()
-                   if (args.query) params.append('query', args.query)
-                   if (args.tags) params.append('tags', args.tags)
-                   if (args.difficulty) params.append('difficulty', args.difficulty)
-                   
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-                    const response = await fetch(`${apiUrl}/api/dsa/interview/search?${params}`)
-                    const data = await response.json()
-                   
-                   console.log("✅ Search results:", data.count, "problems found")
-                   return JSON.stringify({
-                       success: true,
-                       problems: data.data.map((p: any) => ({
-                           id: p._id,
-                           title: p.title,
-                           difficulty: p.difficulty,
-                           problemNumber: p.problemNumber,
-                           tags: [...(p.dataStructures || []), ...(p.patterns || [])]
-                       })),
-                       count: data.count
-                   })
-               } catch (error: any) {
-                   console.error("❌ Search failed:", error)
-                   return JSON.stringify({ 
-                       success: false, 
-                       error: 'Failed to search problems: ' + error.message 
-                   })
-               }
+               problemAlreadyLoading = true  // set guard immediately
            }
+
            
+           // (searchDSAProblems removed — problem is pre-loaded before VAPI starts)
+           
+
           if (name === 'loadDSAProblem') {
                 try {
                     console.log("📥 AI loading problem:", args.problemId)
                     
-                    // Track call ID for duplicate prevention
                     const currentCallId = ++latestLoadCallIdRef.current
+                    setIsLoadingProblem(true)
+                    setLoadAttempt(prev => prev + 1)
                     
-                    // FIX 1: Define apiUrl BEFORE using it!
                     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-                    // FIX 2: Use correct URL with problemId, not search endpoint!
                     const response = await fetch(`${apiUrl}/api/dsa/interview/${args.problemId}`)
                     
-                    // FIX 3: Cancel if newer call exists (prevents duplicates)
                     if (currentCallId !== latestLoadCallIdRef.current) {
                         console.log("🚫 Cancelling stale loadDSAProblem call")
+                        setIsLoadingProblem(false)
                         return JSON.stringify({ success: false, error: "Cancelled" })
                     }
                     
@@ -365,22 +397,47 @@ Be friendly, encouraging, and time-aware. Let's begin!`
                     const data = await response.json()
                     
                     if (data.success) {
-                        setProblem(data.data.problem)
-                        setCode(data.data.problem.starterCode?.[language] || '')
+                        const p = data.data.problem
+                        setProblem(p)
+                        const starterCode = p.starterCode
+                        setCode(starterCode?.[language] || starterCode?.javascript || '')
                         setTestResults(null)
+                        setIsLoadingProblem(false)
                         
-                        console.log("✅ Loaded problem:", data.data.problem.title)
+                        // Strip HTML tags so AI can read the description cleanly
+                        const plainDescription = (p.description || '')
+                            .replace(/<[^>]+>/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim()
+                            .substring(0, 600)
+                        
+                        // Build examples text
+                        const examplesText = (p.examples || []).slice(0, 2).map((ex: any, i: number) =>
+                            `Example ${i+1}: Input = ${ex.input}, Output = ${ex.output}${ex.explanation ? `, Explanation: ${ex.explanation}` : ''}`
+                        ).join(' | ')
+                        
+                        // Build constraints text
+                        const constraintsText = (p.constraints || []).slice(0, 3).join('; ')
+                        
+                        console.log("✅ Loaded problem:", p.title)
                         return JSON.stringify({
                             success: true,
-                            message: `Successfully loaded: ${data.data.problem.title}`,
-                            title: data.data.problem.title,
-                            difficulty: data.data.problem.difficulty
+                            problemLoaded: true,
+                            title: p.title,
+                            difficulty: p.difficulty,
+                            description: plainDescription,
+                            examples: examplesText,
+                            constraints: constraintsText,
+                            topics: [...(p.dataStructures || []), ...(p.patterns || [])].slice(0, 3),
+                            message: `Problem "${p.title}" is now displayed on the candidate's screen. You can now explain it verbally.`
                         })
                     } else {
-                        return JSON.stringify({ success: false, error: data.message })
+                        setIsLoadingProblem(false)
+                        return JSON.stringify({ success: false, error: data.message || 'Problem not found' })
                     }
                 } catch (error: any) {
                     console.error("❌ Load failed:", error)
+                    setIsLoadingProblem(false)
                     return JSON.stringify({ 
                         success: false, 
                         error: 'Failed to load problem: ' + error.message 
@@ -389,7 +446,6 @@ Be friendly, encouraging, and time-aware. Let's begin!`
             }
             
             if (name === 'createProblem') {
-                // FIX 4: Validate required parameters FIRST
                 if (!args.title || !args.description) {
                     console.error("❌ createProblem missing required params:", args)
                     return JSON.stringify({
@@ -398,10 +454,10 @@ Be friendly, encouraging, and time-aware. Let's begin!`
                     })
                 }
                 
-                // FIX 5: Track call ID for duplicate prevention
                 const currentCallId = ++latestCreateCallIdRef.current
-                
                 console.log("🎨 AI creating custom problem:", args.title)
+                setIsLoadingProblem(true)
+                
                 const customProblem = {
                     _id: `custom-${Date.now()}`,
                     title: args.title,
@@ -421,32 +477,58 @@ Be friendly, encouraging, and time-aware. Let's begin!`
                     companies: []
                 }
                 
-                // FIX 6: Cancel if newer call exists
                 if (currentCallId !== latestCreateCallIdRef.current) {
                     console.log("🚫 Cancelling stale createProblem call")
+                    setIsLoadingProblem(false)
                     return JSON.stringify({ success: false, error: "Cancelled" })
                 }
                 
                 setProblem(customProblem)
-                // FIX 7: TypeScript fix with type assertion and fallback
                 const starterCode = customProblem.starterCode as Record<string, string>
                 setCode(starterCode[language] || starterCode.javascript)
                 setTestResults(null)
+                setIsLoadingProblem(false)
+                
+                // Build plain text description for AI
+                const plainDescription = (args.description || '')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .substring(0, 600)
+                
+                const examplesText = (args.examples || []).slice(0, 2).map((ex: any, i: number) =>
+                    `Example ${i+1}: Input = ${ex.input}, Output = ${ex.output}${ex.explanation ? `, Explanation: ${ex.explanation}` : ''}`
+                ).join(' | ')
                 
                 console.log("✅ Created custom problem:", args.title)
                 return JSON.stringify({
                     success: true,
-                    message: `Created problem: ${args.title}`,
-                    title: args.title
+                    problemLoaded: true,
+                    title: args.title,
+                    difficulty: args.difficulty || 'Medium',
+                    description: plainDescription,
+                    examples: examplesText,
+                    constraints: (args.constraints || []).slice(0, 3).join('; '),
+                    message: `Custom problem "${args.title}" is now displayed on screen. You can now explain it verbally.`
                 })
             }
            
            if (name === 'submitFeedback') {
                await handleFeedbackSubmission(args)
+               return JSON.stringify({ success: true, message: 'Feedback submitted and session ended.' })
            }
+
+           // Catch-all: unknown function name
+           console.warn('⚠️ Unknown function called:', name)
+           return JSON.stringify({ success: false, error: `Unknown function: ${name}` })
       }
-      
-      startCall(prompt, voiceId, language, handleFunctionCall, additionalFunctions).catch(err => console.error("Failed to start VAPI:", err))
+
+       // ── Start VAPI with the pre-loaded problem context ──────────────
+       console.log('Using system prompt:', prompt.substring(0, 200) + '...')
+       await startCall(prompt, voiceId, spokenLanguage, handleFunctionCall, additionalFunctions)
+     }
+
+      preLoadAndStart().catch(err => console.error('❌ preLoadAndStart failed:', err))
     }
   }, [systemPrompt]) // Dependency array intentionally limited to avoid restarts
 
@@ -579,8 +661,20 @@ Be friendly, encouraging, and time-aware. Let's begin!`
                   {!isCallActive ? "Paused" : !hasSpoken ? "Preparing..." : "Monitoring..."}
                 </p>
               </div>
-              {/* Visual indicator when reading code? */}
             </div>
+
+            {/* Problem Loading Indicator */}
+            {isLoadingProblem && (
+              <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-blue-400">Loading problem...</p>
+                  {loadAttempt > 1 && (
+                    <p className="text-xs text-muted-foreground">Attempt {loadAttempt} of 5</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Transcript Preview */}
             <div className="mb-3 p-3 bg-secondary/20 rounded-lg max-h-32 overflow-y-auto">

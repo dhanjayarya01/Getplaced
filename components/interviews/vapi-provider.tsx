@@ -50,6 +50,10 @@ export function VapiProvider({ children }: { children: ReactNode }) {
         const isFunctionCall = message.type === 'function-call'
         const isToolCalls = message.type === 'tool-calls' && message.toolCalls?.length > 0
 
+        if (isFunctionCall || isToolCalls) {
+          console.log('📞 [PROVIDER] Tool call received:', message.type, isToolCalls ? message.toolCalls?.[0]?.function?.name : message.functionCall?.name)
+        }
+
         if ((isFunctionCall || isToolCalls) && onFunctionCall) {
           let functionName: string
           let functionArgs: any
@@ -82,15 +86,34 @@ export function VapiProvider({ children }: { children: ReactNode }) {
 
           console.log('✅ Calling function:', functionName, 'with args:', parsedArgs)
 
-          // Call the function handler and send result back
-          onFunctionCall(functionName, parsedArgs).then((result: any) => {
-            if (result) {
-              console.log('📤 Function returned result, sending back to VAPI...')
-              vapiService.sendToolResult(toolCallId, result)
+          // ── Call handler and ALWAYS send result back ──────────────────
+          // Previously used .then(result => { if (result) sendToolResult })
+          // Bug: if result was undefined/null/falsy, sendToolResult was
+          // never called → AI got no response → "I can't read your code"
+          ;(async () => {
+            let result: any
+            try {
+              result = await onFunctionCall(functionName, parsedArgs)
+            } catch (err: any) {
+              console.error('❌ Function call threw:', err)
+              result = JSON.stringify({ success: false, error: String(err?.message || err) })
             }
-          }).catch((error: any) => {
-            console.error('❌ Function call error:', error)
-          })
+
+            // Always send a result — even if undefined, send empty success
+            // so the AI's tool call loop is always closed
+              // Send the result via vapiService
+              if (result && toolCallId) {
+                console.log('📤 Function returned result, sending back to VAPI...')
+                vapiService.sendToolResult(toolCallId, result, message.type)
+              } else {
+                console.warn('⚠️ Function returned empty/null result or missing call ID:', { toolCallId, result })
+                // Send dummy result to prevent hanging
+                if (toolCallId) {
+                  vapiService.sendToolResult(toolCallId, JSON.stringify({ success: true }), message.type)
+                }
+              }
+          })()
+
         }
       }, additionalFunctions)
       setIsCallActive(true)

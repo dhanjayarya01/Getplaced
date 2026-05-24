@@ -4,6 +4,8 @@ import Vapi from '@vapi-ai/web'
 class VapiService {
     private vapi: Vapi | null = null
     private isCallActive = false
+    private currentMessageHandler: ((message: any) => void) | null = null
+    private processedToolCallIds = new Set<string>()
 
     constructor() {
         const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || ''
@@ -11,142 +13,114 @@ class VapiService {
         this.vapi = new Vapi(apiKey)
     }
 
-    // Start call with system prompt, optional voice, and optional language
-    async startCall(systemPrompt: string, voiceId?: string, language?: string, onMessage?: (message: any) => void, additionalFunctions?: any[]) {
+    async startCall(
+        systemPrompt: string,
+        voiceId?: string,
+        language?: string,
+        onMessage?: (message: any) => void,
+        additionalFunctions?: any[]
+    ) {
         if (!this.vapi) throw new Error('VAPI not initialized')
 
-        // Map language names to Deepgram language codes
         const languageMap: { [key: string]: string } = {
-            'English': 'en',
-            'Hindi': 'hi',
-            'Spanish': 'es',
-            'French': 'fr',
-            'German': 'de'
+            'English': 'en', 'Hindi': 'hi', 'Spanish': 'es', 'French': 'fr', 'German': 'de'
         }
-
         const transcriptionLanguage = languageMap[language || 'English'] || 'en'
+        const elevenLabsModel = language && language !== 'English' ? 'eleven_multilingual_v2' : undefined
 
-        console.log('VAPI Configuration:', {
-            language,
-            transcriptionLanguage,
-            voiceId
-        })
+        console.log('VAPI Configuration:', { language, transcriptionLanguage, voiceId })
+
+        // Default functions (always included)
+        const defaultFunctions = [
+            {
+                name: 'submitFeedback',
+                description: 'Submit the final interview feedback and score after verbally giving feedback.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        score: { type: 'number', description: 'Score from 0-10' },
+                        areasGoodIn: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: '2-3 things the candidate did well'
+                        },
+                        areasToWorkOn: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: '2 areas for improvement'
+                        }
+                    },
+                    required: ['score', 'areasGoodIn', 'areasToWorkOn']
+                }
+            }
+        ]
+
+        const functions = [...defaultFunctions, ...(additionalFunctions || [])]
 
         try {
-            // For Hindi, we need ElevenLabs multilingual model
-            const elevenLabsModel = language && language !== 'English' ? 'eleven_multilingual_v2' : undefined
-
-            // Default functions
-            const defaultFunctions = [
-                {
-                    name: 'submitFeedback',
-                    description: 'Submit the final interview feedback and score. Call this AFTER verbally giving feedback to the candidate.',
-                    parameters: {
-                        type: 'object',
-                        properties: {
-                            score: {
-                                type: 'number',
-                                description: 'Score from 0-10'
-                            },
-                            areasGoodIn: {
-                                type: 'array',
-                                items: { type: 'string' },
-                                description: 'List of 2-3 things the candidate did well'
-                            },
-                            areasToWorkOn: {
-                                type: 'array',
-                                items: { type: 'string' },
-                                description: 'List of 2 areas for improvement'
-                            }
-                        },
-                        required: ['score', 'areasGoodIn', 'areasToWorkOn']
-                    }
-                }
-            ]
-
-            // Merge additional functions
-            const functions = [...defaultFunctions, ...(additionalFunctions || [])]
-
             await this.vapi.start({
                 model: {
                     provider: 'openai',
                     model: 'gpt-4',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: systemPrompt
-                        }
-                    ],
-                    // Add function calling
-                    functions: functions
-                } as any, // Bypass TypeScript for function calling
+                    messages: [{ role: 'system', content: systemPrompt }],
+                    functions,
+                } as any,
                 voice: {
                     provider: '11labs',
                     voiceId: voiceId || '21m00Tcm4TlvDq8ikWAM',
-                    ...(elevenLabsModel && { model: elevenLabsModel }) // Add model only for non-English
+                    ...(elevenLabsModel && { model: elevenLabsModel })
                 },
                 transcriber: {
                     provider: 'deepgram',
-                    model: 'nova-3', // Latest model for better accuracy
+                    model: 'nova-3',
                     language: transcriptionLanguage as any
                 },
-                // Call duration and silence settings
-                maxDurationSeconds: 1800, // 30 minutes hard limit
-
-                // ENHANCED: Silence handling for coding interviews
-                // Allow long periods of silence while user codes
-                silenceTimeoutSeconds: 300, // 5 minutes of silence before VAPI considers it "too quiet"
-
-                // Keep connection alive with subtle background sound
-                backgroundSound: 'office', // Subtle ambient sound to keep connection stable
-
-                // Give AI time to think before responding
+                maxDurationSeconds: 1800,
+                silenceTimeoutSeconds: 300,
+                backgroundSound: 'office',
                 responseDelaySeconds: 0.4,
-
-                // Make the assistant speak first based on the system prompt
                 firstMessageMode: 'assistant-speaks-first-with-model-generated-message',
-
-                // Graceful disconnection message
                 endCallMessage: 'Interview session ended. Thank you!',
-
-                // NOTE: Primary silence management via AI prompts
-                // AI actively checks in every 4 minutes: "Are you done?"
-                // If no response after 2 attempts (total ~1 min), AI ends call gracefully
-                // The 5-minute silenceTimeout above is a backup safety net
             } as any)
 
             this.isCallActive = true
-            
-            // Listen to ALL messages with debugging
-            this.vapi.on('message', (message: any) => {
-                // Always log function-call/tool-calls in full for debugging
+
+            // Remove stale listeners from previous calls
+            if (this.currentMessageHandler) {
+                this.vapi.off('message', this.currentMessageHandler)
+                this.currentMessageHandler = null
+            }
+            this.processedToolCallIds.clear()
+
+            this.currentMessageHandler = (message: any) => {
+                // Only log function/tool events — suppress model-output, speech-update, etc.
                 if (message.type === 'function-call' || message.type === 'tool-calls') {
-                    console.log('🔧 [VAPI FUNCTION EVENT] Full message:', JSON.stringify(message, null, 2))
-                } else if (message.type !== 'transcript') {
-                    console.log('📨 VAPI Message:', message.type, message)
+                    console.log('🔧 [VAPI TOOL CALL]', JSON.stringify(message, null, 2))
                 }
 
-                // Forward all messages to custom handler
-                if (onMessage) {
-                    onMessage(message)
+                // Dedup guard
+                if (message.type === 'tool-calls' && message.toolCalls?.length > 0) {
+                    const callId = message.toolCalls[0]?.id
+                    if (callId && this.processedToolCallIds.has(callId)) {
+                        console.warn('⚠️ Duplicate tool-call ignored:', callId)
+                        return
+                    }
+                    if (callId) this.processedToolCallIds.add(callId)
                 }
-            })
 
-            // Listen to call end
+                if (onMessage) onMessage(message)
+            }
+
+            this.vapi.on('message', this.currentMessageHandler)
             this.vapi.on('call-end', () => {
                 this.isCallActive = false
+                this.processedToolCallIds.clear()
             })
 
             console.log('✅ VAPI Call started successfully')
             return { success: true }
         } catch (error: any) {
             console.error('❌ VAPI Call failed:', error)
-            console.error('Error details:', {
-                message: error?.message,
-                stack: error?.stack,
-                response: error?.response,
-                data: error?.response?.data
-            })
             throw new Error(`VAPI Error: ${error?.message || 'Unknown error'}`)
         }
     }
@@ -165,74 +139,100 @@ class VapiService {
     toggleMute() {
         if (!this.vapi) return
         this.vapi.setMuted(!this.vapi.isMuted())
+        return !this.vapi.isMuted()
     }
 
-    isMuted() {
-        return this.vapi?.isMuted() || false
-    }
+    isMuted() { return this.vapi?.isMuted() || false }
+    isActive() { return this.isCallActive }
 
-    // Get call status
-    isActive() {
-        return this.isCallActive
-    }
-
-    // Set event listeners
     on(event: string, callback: (data: any) => void) {
         if (!this.vapi) return
         this.vapi.on(event as any, callback)
     }
 
-    // Remove event listeners
     off(event: string, callback: (data: any) => void) {
         if (!this.vapi) return
         this.vapi.off(event as any, callback)
     }
 
-    // Send tool result back to VAPI
-    sendToolResult(toolCallId: string, result: any) {
+    // Inject content into the active VAPI conversation as a user message.
+    // Using role 'user' because VAPI reliably processes it — 'system' may be ignored.
+    // The message is prefixed so the AI knows it's a system-injected update, not speech.
+    injectSystemMessage(content: string) {
+        if (!this.vapi) return
+        try {
+            this.vapi.send({
+                type: 'add-message',
+                message: {
+                    role: 'user',
+                    content: `[SYSTEM] ${content}`
+                }
+            } as any)
+        } catch (e) {
+            console.warn('⚠️ injectSystemMessage failed:', e)
+        }
+    }
+
+    // VAPI uses two event types depending on SDK version / config:
+    //   'function-call' → expects tool-call-result
+    //   'tool-calls'    → expects add-message with role 'tool'
+    sendToolResult(toolCallId: string, result: any, messageType?: string) {
         if (!this.vapi) {
-            console.error('VAPI not initialized')
+            console.error('❌ sendToolResult: VAPI not initialized')
             return
         }
 
         try {
-            console.log('📤 Sending tool result to VAPI:', { toolCallId, result })
+            const resultStr = typeof result === 'string' ? result : JSON.stringify(result)
+            console.log('📤 sendToolResult → toolCallId:', toolCallId, '| result:', resultStr.substring(0, 120))
 
-            // Parse the result if it's a JSON string
-            let resultData: any = result
-            try {
-                resultData = typeof result === 'string' ? JSON.parse(result) : result
-            } catch (e) {
-                // Not JSON — use as-is string
-                resultData = result
-            }
-
-            // Primary: VAPI Web SDK proper tool-call-result format
-            // This correctly closes the function-call loop so the AI doesn't re-call with empty args
+            // Format 1: tool-call-result (for function-call events)
             try {
                 this.vapi.send({
                     type: 'tool-call-result',
-                    toolCallId: toolCallId,
-                    result: typeof resultData === 'string' ? resultData : JSON.stringify(resultData)
+                    toolCallId,
+                    result: resultStr
                 } as any)
-                console.log('✅ Tool result sent via tool-call-result')
-            } catch (sendError) {
-                // Fallback: inject as system message (older SDK versions)
-                console.warn('⚠️ tool-call-result failed, falling back to add-message:', sendError)
+                console.log('✅ Sent tool-call-result')
+            } catch (e) {
+                console.warn('⚠️ tool-call-result send failed:', e)
+            }
+
+            // Format 2: add-message (for tool-calls events)
+            try {
                 this.vapi.send({
                     type: 'add-message',
                     message: {
                         role: 'tool',
+                        tool_call_id: toolCallId,
                         toolCallId: toolCallId,
-                        content: typeof resultData === 'string' ? resultData : JSON.stringify(resultData)
+                        content: resultStr
                     }
                 } as any)
-                console.log('✅ Tool result sent via add-message fallback')
+                console.log('✅ Sent add-message tool result')
+            } catch (e) {
+                console.warn('⚠️ add-message send failed:', e)
+            }
+
+            // GUARANTEE THE AI SEES IT: Push it directly as a system message!
+            // If VAPI drops the tool result or fails to parse it, this ensures the AI still gets the payload.
+            try {
+                this.vapi.send({
+                    type: 'add-message',
+                    message: {
+                        role: 'system',
+                        content: `[SYSTEM ALERT: Tool Execution Result]\nThe requested tool returned this data:\n${resultStr}`
+                    }
+                } as any)
+                console.log('✅ Injected tool result as system message to guarantee visibility')
+            } catch (e) {
+                console.warn('⚠️ inject system message failed:', e)
             }
         } catch (error) {
-            console.error('❌ Error sending tool result:', error)
+            console.error('❌ sendToolResult failed:', error)
         }
     }
+
 }
 
 export const vapiService = new VapiService()
