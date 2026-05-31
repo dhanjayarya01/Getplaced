@@ -542,7 +542,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
       setTestResult(d)
       setTestState('done')
       setShowTestModal(true)
-      addLog(d.success ? `$ ✓ Tests Passed!` : `$ ✗ Tests Failed.`)
+      addLog(`$ Tests Result Available`)
     } catch (e: any) { 
       setTestState('idle')
       addLog(`$ ✗ ${e.message}`) 
@@ -749,8 +749,8 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
             {testState === 'running' ? 'Testing...' : 'Run Tests'}
           </Button>
           {testResult && (
-             <Button size={size} variant="ghost" onClick={() => setShowTestModal(true)} className={`h-7 text-xs gap-1.5 ${testResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
-               {testResult.success ? '✓ Passed' : '✗ Failed'}
+             <Button size={size} variant="ghost" onClick={() => setShowTestModal(true)} className="h-7 text-xs gap-1.5 text-foreground">
+               Tests Result
              </Button>
           )}
         </div>
@@ -1178,7 +1178,7 @@ export function CodeArenaWorkspace({ problemId }: CodeArenaWorkspaceProps) {
           <div className="bg-[#161b22] border border-[#30363d] rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#30363d]">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                {testResult.success ? <span className="text-emerald-400">✓ Tests Passed</span> : <span className="text-red-400">✗ Tests Failed</span>}
+                <span>Tests Result</span>
               </h2>
               <button onClick={() => setShowTestModal(false)} className="text-muted-foreground hover:text-white">✕</button>
             </div>
